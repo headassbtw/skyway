@@ -14,14 +14,16 @@ use crate::{
     frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
-        main::{ClientFrontend, ClientFrontendFlyout, ClientFrontendFlyoutVariant},
+        main::ClientFrontendFlyout,
     },
     image::{ImageCache, LoadableImage},
     widgets::click_context_menu,
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
-    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Id, Layout, Rect, Response, RichText, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder
+    pos2,
+    text::{LayoutJob, TextWrapping},
+    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder,
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -62,7 +64,18 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
             if let Some(reason) = &post.reason {
                 match reason {
                     BlueskyApiTimelineReason::Repost(repost) => {
-                        name.weak(format!("\u{E201} Reposted by {}", if let Some(dn) = &repost.by.display_name { if dn.len() > 0 { dn } else { &repost.by.handle } } else { &repost.by.handle }));
+                        name.weak(format!(
+                            "\u{E201} Reposted by {}",
+                            if let Some(dn) = &repost.by.display_name {
+                                if dn.len() > 0 {
+                                    dn
+                                } else {
+                                    &repost.by.handle
+                                }
+                            } else {
+                                &repost.by.handle
+                            }
+                        ));
                     }
                     BlueskyApiTimelineReason::Pin => {
                         name.weak("Pinned");
@@ -71,7 +84,18 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
             } else if let Some(reply) = &post.reply {
                 match &reply.parent {
                     BlueskyApiTimelineReasonReply::Post(post) => {
-                        name.weak(format!("\u{E200} Replying to {}", if let Some(name) = &post.author.display_name { if name.len() > 0 { name } else { &post.author.handle } } else { &post.author.handle }));
+                        name.weak(format!(
+                            "\u{E200} Replying to {}",
+                            if let Some(name) = &post.author.display_name {
+                                if name.len() > 0 {
+                                    name
+                                } else {
+                                    &post.author.handle
+                                }
+                            } else {
+                                &post.author.handle
+                            }
+                        ));
                     }
                     BlueskyApiTimelineReasonReply::NotFound => {
                         name.weak("\u{E200} Replying to an unknown post");
@@ -111,12 +135,15 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
             post_contents.set_max_width(the_width_you_care_about);
             post_contents.with_layout(Layout::left_to_right(egui::Align::TOP), |name| 'render_name: {
                 puffin::profile_scope!("Name");
-                if !name.is_visible() { break 'render_name; }
+                if !name.is_visible() {
+                    break 'render_name;
+                }
                 let guh_fr = name.painter().layout_no_wrap(offset_time(post.post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
                 name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
                 let heavy_display_name = if let Some(display_name) = &post.post.author.display_name {
-                    if display_name.len() > (0 as usize) { // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
+                    if display_name.len() > (0 as usize) {
+                        // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
                         name.label(egui::RichText::new(display_name).size(20.0));
                         false
                     } else {
@@ -183,9 +210,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                             break 'render_images;
                         }
                         post_contents.allocate_new_ui(UiBuilder::default().max_rect(img_rect), |container| {
-                            ScrollArea::horizontal()
-                            .max_width(img_rect.width()).max_height(img_rect.height())
-                            .vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.post.cid).show(container, |container| {
+                            ScrollArea::horizontal().max_width(img_rect.width()).max_height(img_rect.height()).vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.post.cid).show(container, |container| {
                                 container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
                                     for img in images {
                                         if !container.is_visible() {
@@ -301,7 +326,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 puffin::profile_scope!("Action Buttons");
                 if post.post.viewer.is_none() {
-                    break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother   
+                    break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother
                 }
                 if !action_buttons.is_rect_visible(action_buttons.cursor().with_max_y(action_buttons.cursor().top() + 30.0)) {
                     action_buttons.allocate_space(vec2(0.0, 30.0));
@@ -310,9 +335,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
 
                 action_buttons.style_mut().spacing.item_spacing.x = 26.0;
 
-                let reply_enabled = if let Some(dis) = post.post.viewer.as_ref().unwrap().reply_disabled {
-                    dis
-                } else { true };
+                let reply_enabled = if let Some(dis) = post.post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
                 action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
                     if circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None).clicked() {
                         let reply = BlueskyApiReplyRef {

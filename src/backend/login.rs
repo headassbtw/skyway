@@ -11,6 +11,7 @@ use super::{
 };
 use base64::prelude::*;
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct JwtMidsection {
     scope: String,

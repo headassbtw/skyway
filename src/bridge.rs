@@ -1,5 +1,9 @@
 use crate::backend::{
-    main::BlueskyLoginResponse, profile::BlueskyApiProfile, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, responses::timeline::{BlueskyApiTimelinePostResponse, BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject}, BlueskyApiError, BlueskyApiErrorMessage, ClientBackend
+    main::BlueskyLoginResponse,
+    profile::BlueskyApiProfile,
+    record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
+    responses::timeline::{BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject},
+    BlueskyApiError, ClientBackend,
 };
 use anyhow::Result;
 use std::sync::{
@@ -135,27 +139,25 @@ impl Bridge {
                         Err(err) => tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?,
                     },
                 },
-                FrontToBackMsg::DeleteRecordRequest(rkey, nsid) => {
+                FrontToBackMsg::DeleteRecordRequest(_rkey, _nsid) => {
                     tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::ParseError("Not Implemented".to_owned()))))?;
                 }
                 FrontToBackMsg::DeleteRecordUnderPostRequest(rkey, nsid, post_mod) => {
                     println!("deleting {}", rkey);
                     match api.delete_record(rkey, nsid.clone()).await {
-                        Ok(res) => {
-                            match nsid.as_str() {
-                                "app.bsky.feed.like" => {
-                                    if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
-                                        viewer.like = None;
-                                    }
-                                },
-                                "app.bsky.feed.repost" => {
-                                    if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
-                                        viewer.repost = None;
-                                    }
-                                },
-                                _ => {
-                                    tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::ParseError("Tried to delete a post under a post, not implemented".to_owned()))))?;
-                                },
+                        Ok(_) => match nsid.as_str() {
+                            "app.bsky.feed.like" => {
+                                if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
+                                    viewer.like = None;
+                                }
+                            }
+                            "app.bsky.feed.repost" => {
+                                if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
+                                    viewer.repost = None;
+                                }
+                            }
+                            _ => {
+                                tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::ParseError("Tried to delete a post under a post, not implemented".to_owned()))))?;
                             }
                         },
                         Err(err) => tx.send(BackToFrontMsg::RecordDeletionResponse(Err(err)))?,

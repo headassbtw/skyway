@@ -1,19 +1,14 @@
 use std::sync::{Arc, Mutex};
 
-use chrono::{DateTime, Datelike, Timelike, Utc};
-use egui::{pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Galley, Id, Image, Layout, Rect, Rounding, ScrollArea, Stroke, TextFormat, TextureId, UiBuilder, Vec2};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
 
 use crate::{
-    backend::{
-        record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef}, responses::timeline::{
-            embed::{BlueskyApiTimelineEmbedRecordView, BlueskyApiTimelinePostEmbedView},
-            reason::BlueskyApiTimelineReason,
-            reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject,
-        }
-    }, bridge::Bridge, frontend::{circle_button, flyouts::composer::ComposerFlyout, main::{ClientFrontend, ClientFrontendFlyout}, viewers}, image::{ImageCache, LoadableImage}, widgets::{click_context_menu, spinner::SegoeBootSpinner}
+    backend::responses::timeline::BlueskyApiTimelineResponseObject,
+    bridge::Bridge,
+    frontend::{flyouts::composer::ComposerFlyout, main::ClientFrontendFlyout, viewers},
+    image::ImageCache,
+    widgets::spinner::SegoeBootSpinner,
 };
-
-use super::FrontendMainView;
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
@@ -25,46 +20,41 @@ pub struct FrontendTimelineView {
 
 impl FrontendTimelineView {
     pub fn new() -> Self {
-        Self {
-            timeline: Vec::new(),
-            timeline_cursor: Some("".to_owned()),
-            post_highlight: (0, 999.999, false),
-        }
+        Self { timeline: Vec::new(), timeline_cursor: Some("".to_owned()), post_highlight: (0, 999.999, false) }
     }
 
     pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout) {
-        puffin::profile_function!();    
+        puffin::profile_function!();
         let pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
 
         ui.painter().text(pos, Align2::LEFT_BOTTOM, "Timeline", FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
-        ScrollArea::vertical()
-        .hscroll(false)
-        .max_width(ui.cursor().width()).max_height(ui.cursor().height())
-        .show(ui, |tl| {
+        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).max_height(ui.cursor().height()).show(ui, |tl| {
             let length = if self.timeline.len() <= 0 { 0 } else { self.timeline.len() - 1 };
 
             // keyboard nav polling
-            let (scrolling, scroll_to) = {   puffin::profile_scope!("Keyboard nav part A");
+            let (scrolling, scroll_to) = {
+                puffin::profile_scope!("Keyboard nav part A");
 
-
-                let scroll_to: Option<usize> = if !tl.is_enabled() {None} else {tl.input(|r| {
-                    puffin::profile_scope!("Key polling");
-                    if r.key_pressed(egui::Key::K) {
-                        self.post_highlight.0 += 1;
-                        self.post_highlight.2 = true;
-                        Some(self.post_highlight.0)
-                    } else if r.key_pressed(egui::Key::J) && self.post_highlight.0 > 0 {
-                        self.post_highlight.0 -= 1;
-                        self.post_highlight.2 = true;
-                        Some(self.post_highlight.0)
-                    } else {
-                        None
-                    }
-                })};
-                let scrolling = tl.input(|r| {
-                    r.smooth_scroll_delta != Vec2::new(0.0, 0.0)
-                });
+                let scroll_to: Option<usize> = if !tl.is_enabled() {
+                    None
+                } else {
+                    tl.input(|r| {
+                        puffin::profile_scope!("Key polling");
+                        if r.key_pressed(egui::Key::K) {
+                            self.post_highlight.0 += 1;
+                            self.post_highlight.2 = true;
+                            Some(self.post_highlight.0)
+                        } else if r.key_pressed(egui::Key::J) && self.post_highlight.0 > 0 {
+                            self.post_highlight.0 -= 1;
+                            self.post_highlight.2 = true;
+                            Some(self.post_highlight.0)
+                        } else {
+                            None
+                        }
+                    })
+                };
+                let scrolling = tl.input(|r| r.smooth_scroll_delta != Vec2::new(0.0, 0.0));
                 if scrolling {
                     self.post_highlight.2 = false;
                 }
@@ -75,9 +65,12 @@ impl FrontendTimelineView {
                 puffin::profile_scope!("Post");
                 let res = viewers::post::post_viewer(tl, self.timeline[i].clone(), backend, image, flyout);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
-                {   puffin::profile_scope!("Keyboard nav part B");
-                    if scrolling /* do some max height check here*/ { 
-                        let comp = f32::abs((top - res.rect.top()));
+                {
+                    puffin::profile_scope!("Keyboard nav part B");
+                    if scrolling
+                    /* do some max height check here*/
+                    {
+                        let comp = f32::abs(top - res.rect.top());
                         if comp < self.post_highlight.1 {
                             self.post_highlight.1 = comp;
                             self.post_highlight.0 = i;
@@ -109,7 +102,6 @@ impl FrontendTimelineView {
         let _search_button = ui.allocate_rect(Rect::from_center_size(search_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let compose_button = ui.allocate_rect(Rect::from_center_size(compose_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let refresh_button = ui.allocate_rect(Rect::from_center_size(refresh_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-
 
         ui.painter().text(search_pos, Align2::CENTER_CENTER, "\u{E11A}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
         ui.painter().text(compose_pos, Align2::CENTER_CENTER, "\u{E104}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);

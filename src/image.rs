@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs::{self, File}, io::{self, Write}, path::PathBuf, sync::{mpsc::{Receiver, Sender}, Arc, Mutex}, hash::{DefaultHasher, Hash, Hasher}};
+use std::{collections::HashMap, fs::{self, File}, io::Write, path::PathBuf, sync::{mpsc::{Receiver, Sender}, Arc, Mutex}, hash::{DefaultHasher, Hash, Hasher}};
 use image::{ImageReader, DynamicImage};
 use directories::ProjectDirs;
 use egui::{ColorImage, TextureHandle, TextureId, TextureOptions};
@@ -19,12 +19,8 @@ enum LoaderRequest {
 }
 
 pub struct ImageCache {
-    cache_path: Option<PathBuf>,
     db: Arc<Mutex<HashMap<String, Option<TextureHandle>>>>,
-
     tx: Sender<LoaderRequest>,
-
-    ctx: egui::Context,
 }
 
 impl ImageCache {
@@ -32,7 +28,7 @@ impl ImageCache {
         let (tx0, rx1) = std::sync::mpsc::channel();
 
         let proj_dirs = ProjectDirs::from("dev", "headassbtw",  "com.headassbtw.metro.bluesky");
-        if proj_dirs.is_none() { println!("Could not create image cache folder"); return Self { cache_path: None, db: Arc::new(Mutex::new(HashMap::new())), tx: tx0, ctx}; }
+        if proj_dirs.is_none() { println!("Could not create image cache folder"); return Self { db: Arc::new(Mutex::new(HashMap::new())), tx: tx0}; }
         let proj_dirs = proj_dirs.unwrap();
         
         let dir = proj_dirs.data_local_dir().join("image_cache");
@@ -42,13 +38,12 @@ impl ImageCache {
         
         let map: Arc<Mutex<HashMap<String, Option<TextureHandle>>>> = Arc::new(Mutex::new(HashMap::new()));
         let map0 = map.clone();
-        let ctx0 = ctx.clone();
         
         tokio::task::spawn(async move {
-            let _result = ImageCache::run(rx1, map0, cache, ctx0).await;
+            let _result = ImageCache::run(rx1, map0, cache, ctx).await;
         });
 
-        Self { cache_path: Some(dir), db: map, tx: tx0, ctx}
+        Self { db: map, tx: tx0}
     }
     
     async fn run(

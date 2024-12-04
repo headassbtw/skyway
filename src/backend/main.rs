@@ -1,5 +1,3 @@
-use super::profile::BlueskyApiProfile;
-
 pub enum BlueskyLoginResponseInfo {
 	WasntLoggedIn,
 	TwoFactorTokenRequired,

@@ -1,11 +1,11 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::{borrow::BorrowMut, collections::BTreeMap, sync::{Arc, Mutex}};
+use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 
 use crate::{
     backend::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
         profile::BlueskyApiProfile,
-        responses::timeline::BlueskyApiTimelineResponseObject, BlueskyApiError,
+        BlueskyApiError,
     },
     bridge::Bridge,
     image::ImageCache,
