@@ -80,7 +80,7 @@ impl ClientFrontendFlyoutVariant {
                 } else {
                     ui.label(egui::RichText::new("Unknown Profile").color(Color32::BLACK).font(FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into()))))
                 };
-                ui.painter().text(pos2(right_limit, res.rect.center().y), Align2::RIGHT_CENTER, format!("{}", 300 - data.draft.len()), FontId::proportional(12.0), Color32::GRAY);
+                ui.painter().text(pos2(right_limit, res.rect.center().y), Align2::RIGHT_CENTER, format!("{}", 300 as i16 - data.draft.len() as i16), FontId::proportional(12.0), if data.draft.len() > 300 { Color32::RED } else { Color32::GRAY });
             });
 
             let draft = TextEdit::multiline(&mut data.draft);
@@ -94,7 +94,7 @@ impl ClientFrontendFlyoutVariant {
                 let send_button = buttons.add_enabled_ui(data.draft.len() > 0, |buttons| {
                     buttons.allocate_rect(send_button_rect, egui::Sense::click())
                 }).inner.on_hover_cursor(egui::CursorIcon::PointingHand);
-                buttons.painter().rect_filled(send_button_rect, Rounding::ZERO, BSKY_BLUE.gamma_multiply(if data.draft.len() > 0 { 1.0 } else { 0.5 }));
+                buttons.painter().rect_filled(send_button_rect, Rounding::ZERO, BSKY_BLUE.gamma_multiply(if data.draft.len() > 0 && data.draft.len() <= 300 { 1.0 } else { 0.5 }));
                 
                 buttons.painter().text(send_button_rect.center() - vec2(0.0, 2.0), Align2::CENTER_CENTER, "Post", FontId::proportional(10.0), Color32::WHITE);
                 

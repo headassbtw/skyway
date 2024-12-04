@@ -20,7 +20,10 @@ impl ClientFrontend {
 
         ui.painter().text(pos, Align2::LEFT_BOTTOM, "Timeline", FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
-        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).max_height(ui.cursor().height()).show(ui, |tl| {
+        ScrollArea::vertical()
+        .hscroll(false)
+        .max_width(ui.cursor().width()).max_height(ui.cursor().height())
+        .show(ui, |tl| {
             let length = if self.timeline.len() <= 0 { 0 } else { self.timeline.len() - 1 };
 
             // keyboard nav polling

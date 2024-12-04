@@ -19,9 +19,7 @@ use crate::{
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
-    pos2,
-    text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, TextureId, Ui, UiBuilder,
+    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Id, Layout, Rect, Response, RichText, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -33,13 +31,13 @@ fn offset_time(time: DateTime<Utc>) -> String {
         //TODO: OS formatter
         return format!("{}:{} {}/{}/{}", time.hour(), time.minute(), time.month(), time.day(), time.year());
     } else if offset.num_hours() >= 24 {
-        return format!("{} days ago", offset.num_days());
+        return format!("{}d", offset.num_days());
     } else if offset.num_minutes() >= 60 {
-        return format!("{} hours ago", offset.num_hours());
+        return format!("{}h", offset.num_hours());
     } else if offset.num_seconds() >= 60 {
-        return format!("{} minutes ago", offset.num_minutes());
+        return format!("{}m", offset.num_minutes());
     } else {
-        return format!("{} seconds ago", offset.num_seconds());
+        return format!("{}s", offset.num_seconds());
     }
 }
 
@@ -100,10 +98,16 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
             }
         }
         ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
-            post_contents.with_layout(Layout::left_to_right(egui::Align::TOP), |name| {
+            let the_width_you_care_about = post_contents.cursor().width();
+            post_contents.set_max_width(the_width_you_care_about);
+            post_contents.with_layout(Layout::left_to_right(egui::Align::TOP), |name| 'render_name: {
                 puffin::profile_scope!("Name");
+                if !name.is_visible() { break 'render_name; }
+                let guh_fr = name.painter().layout_no_wrap(offset_time(post.post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
+                name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
+                name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
                 let heavy_display_name = if let Some(display_name) = &post.post.author.display_name {
-                    if display_name.len() > (0 as usize) {
+                    if display_name.len() > (0 as usize) { // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
                         name.label(egui::RichText::new(display_name).size(20.0));
                         false
                     } else {
@@ -113,12 +117,8 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
                     true
                 };
                 let name_res = if heavy_display_name { name.label(egui::RichText::new(&post.post.author.handle).size(20.0)) } else { name.weak(egui::RichText::new(&post.post.author.handle).font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)) };
-                if name.is_rect_visible(name_res.rect) {
-                    puffin::profile_scope!("Time");
-                    name.with_layout(Layout::right_to_left(egui::Align::Min), |time| {
-                        time.weak(offset_time(post.post.record.created_at));
-                    });
-                }
+                name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
+                name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
             });
 
             if post.post.record.text.len() > (0 as usize) {
@@ -174,35 +174,36 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
                             break 'render_images;
                         }
                         post_contents.allocate_new_ui(UiBuilder::default().max_rect(img_rect), |container| {
-                            container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
-                                for img in images {
-                                    if !container.is_visible() {
-                                        continue;
-                                    }
-                                    puffin::profile_scope!("Image");
-                                    let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
-                                    let img_rect = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
-                                    match img_cache.get_image(&img.thumb) {
-                                        LoadableImage::Unloaded | LoadableImage::Loading => {
-                                            container.painter().rect_filled(img_rect.rect, Rounding::ZERO, Color32::GRAY);
+                            ScrollArea::horizontal()
+                            .max_width(img_rect.width()).max_height(img_rect.height())
+                            .vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.post.cid).show(container, |container| {
+                                container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
+                                    for img in images {
+                                        if !container.is_visible() {
+                                            continue;
                                         }
-                                        LoadableImage::Loaded(id) => {
-                                            container.painter().image(id, img_rect.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                                            //container.painter().rect_filled(img_rect.rect, Rounding::ZERO, Color32::GRAY);
+                                        puffin::profile_scope!("Image");
+                                        let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
+                                        let img_rect = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
+                                        match img_cache.get_image(&img.thumb) {
+                                            LoadableImage::Unloaded | LoadableImage::Loading => {
+                                                container.painter().rect_filled(img_rect.rect, Rounding::ZERO, Color32::GRAY);
+                                            }
+                                            LoadableImage::Loaded(id) => {
+                                                container.painter().image(id, img_rect.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                                            }
+                                        };
+                                        if img.alt.len() > 0 as usize {
+                                            puffin::profile_scope!("Alt Text");
+                                            let dim_rect = img_rect.rect.with_min_y(img_rect.rect.bottom() - 20.0);
+                                            container.painter().rect_filled(dim_rect, Rounding::ZERO, Color32::from_black_alpha(128));
+
+                                            container.painter().text(dim_rect.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER, "ALT", FontId::proportional(12.0), Color32::WHITE);
+                                            let alt_guh = container.allocate_rect(dim_rect, egui::Sense::click());
+                                            alt_guh.on_hover_text(&img.alt);
                                         }
-                                    };
-                                    if img.alt.len() > 0 as usize {
-                                        puffin::profile_scope!("Alt Text");
-                                        let dim_rect = img_rect.rect.with_min_y(img_rect.rect.bottom() - 20.0);
-                                        container.painter().rect_filled(dim_rect, Rounding::ZERO, Color32::from_black_alpha(128));
-
-                                        container.painter().text(dim_rect.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER, "ALT", FontId::proportional(12.0), Color32::WHITE);
-                                        let alt_guh = container.allocate_rect(dim_rect, egui::Sense::click());
-                                        alt_guh.on_hover_text(&img.alt);
                                     }
-
-                                    //container.painter().image(ImageSource::Uri(&img.thumb), img_rect.rect, Rect::from_min_max(pos2(0.0,0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                                }
+                                });
                             });
                         });
                     }
