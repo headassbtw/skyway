@@ -27,44 +27,51 @@ impl ClientFrontend {
             let length = if self.timeline.len() <= 0 { 0 } else { self.timeline.len() - 1 };
 
             // keyboard nav polling
-            let scroll_to: Option<usize> = if !tl.is_enabled() {None} else {tl.input(|r| {
-                if r.key_pressed(egui::Key::K) {
-                    self.post_highlight.0 += 1;
-                    self.post_highlight.2 = true;
-                    Some(self.post_highlight.0)
-                } else if r.key_pressed(egui::Key::J) && self.post_highlight.0 > 0 {
-                    self.post_highlight.0 -= 1;
-                    self.post_highlight.2 = true;
-                    Some(self.post_highlight.0)
-                } else {
-                    None
-                }
-            })};
-            let scrolling = tl.input(|r| {
-                r.smooth_scroll_delta != Vec2::new(0.0, 0.0)
-            });
-            if scrolling {
-                self.post_highlight.2 = false;
-            }
-            self.post_highlight.1 = 9999.9999;
-            for i in 0..length {
-                let post = &mut self.timeline[i];
-                puffin::profile_scope!("Post", &post.post.author.handle);
-                let res = viewers::post::post_viewer(tl, post, &self.backend, &self.image, &mut self.flyout);
-                // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
-                if scrolling /* do some max height check here*/ { 
-                    let comp = f32::abs((top - res.rect.top()));
-                    if comp < self.post_highlight.1 {
-                        self.post_highlight.1 = comp;
-                        self.post_highlight.0 = i;
+            let (scrolling, scroll_to) = {   puffin::profile_scope!("Keyboard nav part A");
+
+
+                let scroll_to: Option<usize> = if !tl.is_enabled() {None} else {tl.input(|r| {
+                    puffin::profile_scope!("Key polling");
+                    if r.key_pressed(egui::Key::K) {
+                        self.post_highlight.0 += 1;
+                        self.post_highlight.2 = true;
+                        Some(self.post_highlight.0)
+                    } else if r.key_pressed(egui::Key::J) && self.post_highlight.0 > 0 {
+                        self.post_highlight.0 -= 1;
+                        self.post_highlight.2 = true;
+                        Some(self.post_highlight.0)
+                    } else {
+                        None
                     }
+                })};
+                let scrolling = tl.input(|r| {
+                    r.smooth_scroll_delta != Vec2::new(0.0, 0.0)
+                });
+                if scrolling {
+                    self.post_highlight.2 = false;
                 }
-                if self.post_highlight.2 && i == self.post_highlight.0 {
-                    tl.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(4.0, BSKY_BLUE));
-                }
-                if let Some(to) = scroll_to {
-                    if i == to {
-                        res.scroll_to_me(Some(egui::Align::Min));
+                self.post_highlight.1 = 9999.9999;
+                (scrolling, scroll_to)
+            };
+            for i in 0..length {
+                puffin::profile_scope!("Post");
+                let res = viewers::post::post_viewer(tl, self.timeline[i].clone(), &self.backend, &self.image, &mut self.flyout);
+                // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
+                {   puffin::profile_scope!("Keyboard nav part B");
+                    if scrolling /* do some max height check here*/ { 
+                        let comp = f32::abs((top - res.rect.top()));
+                        if comp < self.post_highlight.1 {
+                            self.post_highlight.1 = comp;
+                            self.post_highlight.0 = i;
+                        }
+                    }
+                    if self.post_highlight.2 && i == self.post_highlight.0 {
+                        tl.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(4.0, BSKY_BLUE));
+                    }
+                    if let Some(to) = scroll_to {
+                        if i == to {
+                            res.scroll_to_me(Some(egui::Align::Min));
+                        }
                     }
                 }
             }

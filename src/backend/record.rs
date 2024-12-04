@@ -1,4 +1,4 @@
-use super::ClientBackend;
+use super::{BlueskyApiError, ClientBackend};
 use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
@@ -74,10 +74,11 @@ pub struct BlueskyApiCreateRecordResponse {
     pub validation_status: Option<String>,
 }
 
-#[derive(std::fmt::Debug, Clone, PartialEq)]
-pub enum BlueskyCreateRecordError {
-    InvalidInput(String),
-    NetworkError(String),
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BlueskyApiDeleteRecordResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub commit: Option<BlueskyApiCreateRecordResponseCommit>,
 }
 
 #[derive(Debug, Serialize, Clone, PartialEq)]
@@ -88,8 +89,16 @@ struct CreateRecordRequest {
     pub record: BlueskyApiRecord,
 }
 
+#[derive(Debug, Serialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+struct DeleteRecordRequest {
+    pub repo: String,
+    pub collection: String,
+    pub rkey: String,
+}
+
 impl ClientBackend {
-    pub async fn create_record(&mut self, record: BlueskyApiRecord) -> Result<BlueskyApiCreateRecordResponse, BlueskyCreateRecordError> {
+    pub async fn create_record(&mut self, record: BlueskyApiRecord) -> Result<BlueskyApiCreateRecordResponse, BlueskyApiError> {
         let nsid = match record {
             BlueskyApiRecord::Post(_) => "app.bsky.feed.post",
             BlueskyApiRecord::Like(_) => "app.bsky.feed.like",
@@ -100,26 +109,36 @@ impl ClientBackend {
 
         let body = serde_json::to_string::<CreateRecordRequest>(&contents);
         if let Err(err) = body {
-            return Err(BlueskyCreateRecordError::InvalidInput(format!("{:?}", err)));
+            return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
         }
         let body = body.unwrap();
 
         let req = self.client.post(format!("{}/xrpc/com.atproto.repo.createRecord", self.user_pds)).body(body).header("content-type", "application/json");
-        let req =  match self.make_request(req).await {
-            Err(error) => {
-                match error {
-                    super::BlueskyApiError::BadRequest(msg) => { return Err(BlueskyCreateRecordError::InvalidInput(format!("Bad Request: {:?}", msg))); },
-                    super::BlueskyApiError::Unauthorized(msg) => { return Err(BlueskyCreateRecordError::NetworkError(format!("Unauthorized: {:?}", msg))); },
-                    super::BlueskyApiError::NetworkError(msg) => { return Err(BlueskyCreateRecordError::NetworkError(msg)); },
-                    super::BlueskyApiError::ParseError(msg) => { return Err(BlueskyCreateRecordError::InvalidInput(msg)); },
-                }
-            },
-            Ok(res) => { res },
-        };
+        let req = self.make_request(req).await?;
 
         let parse: Result<BlueskyApiCreateRecordResponse, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyCreateRecordError::InvalidInput(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
+            return Err(BlueskyApiError::ParseError(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
+        }
+
+        return Ok(parse.unwrap());
+    }
+
+    pub async fn delete_record(&mut self, rkey: String, nsid: String) -> Result<BlueskyApiDeleteRecordResponse, BlueskyApiError> {
+        let contents = DeleteRecordRequest { repo: self.did.clone(), collection: nsid.to_owned(), rkey };
+
+        let body = serde_json::to_string::<DeleteRecordRequest>(&contents);
+        if let Err(err) = body {
+            return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+        }
+        let body = body.unwrap();
+
+        let req = self.client.post(format!("{}/xrpc/com.atproto.repo.deleteRecord", self.user_pds)).body(body).header("content-type", "application/json");
+        let req = self.make_request(req).await?;
+
+        let parse: Result<BlueskyApiDeleteRecordResponse, serde_json::Error> = serde_json::from_str(&req);
+        if let Err(err) = parse {
+            return Err(BlueskyApiError::ParseError(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
         }
 
         return Ok(parse.unwrap());

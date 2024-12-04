@@ -1,11 +1,11 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 
 use crate::{
     backend::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
         profile::BlueskyApiProfile,
-        responses::timeline::BlueskyApiTimelineResponseObject,
+        responses::timeline::BlueskyApiTimelineResponseObject, BlueskyApiError,
     },
     bridge::Bridge,
     image::ImageCache,
@@ -67,7 +67,7 @@ pub struct ClientFrontend {
     pub active: bool,
     pub authenticated: bool,
     pub profile: Option<BlueskyApiProfile>,
-    pub timeline: Vec<BlueskyApiTimelineResponseObject>,
+    pub timeline: Vec<Arc<Mutex<BlueskyApiTimelineResponseObject>>>,
     pub timeline_cursor: Option<String>,
     pub post_highlight: (usize, f32, bool),
 }
@@ -324,7 +324,10 @@ impl eframe::App for ClientFrontend {
                     if let Ok(tl) = tl {
                         println!("Recieved {} posts", tl.feed.len());
                         self.timeline_cursor = tl.cursor;
-                        self.timeline.append(&mut tl.feed.clone());
+                        for post in tl.feed {
+                            self.timeline.push(Arc::new(Mutex::new(post)));
+                        }
+                        //self.timeline.append(&mut tl.feed.clone());
                     }
                 }
                 crate::bridge::BackToFrontMsg::KeyringFailure(reason) => {
@@ -342,17 +345,28 @@ impl eframe::App for ClientFrontend {
                             }
                         }
                     }
-                    Err(err) => match err {
-                        crate::backend::record::BlueskyCreateRecordError::InvalidInput(data) => {
-                            let guh: &str = &format!("Invalid Input\n{:?}", data);
-                            self.info_modal("Failed to create record", guh);
-                        }
-                        crate::backend::record::BlueskyCreateRecordError::NetworkError(data) => {
-                            self.info_modal("Failed to create record", &format!("Network Error: {}", data));
-                        }
+                    Err(err) => {
+                        let s = match err {
+                            BlueskyApiError::BadRequest(error) => format!("{}: {}", error.error, error.message),
+                            BlueskyApiError::Unauthorized(error) => format!("{}: {}", error.error, error.message),
+                            BlueskyApiError::NetworkError(error) => format!("Network Error: {}", error),
+                            BlueskyApiError::ParseError(error) => format!("Parse Error: {}", error),
+                        };
+                        self.info_modal("Failed to delete record", &s);
                     },
                 },
                 crate::bridge::BackToFrontMsg::ProfileResponse(_, _) => todo!(),
+                crate::bridge::BackToFrontMsg::RecordDeletionResponse(data) => {
+                    if let Err(err) = data {
+                        let s = match err {
+                            BlueskyApiError::BadRequest(error) => format!("{}: {}", error.error, error.message),
+                            BlueskyApiError::Unauthorized(error) => format!("{}: {}", error.error, error.message),
+                            BlueskyApiError::NetworkError(error) => format!("Network Error: {}", error),
+                            BlueskyApiError::ParseError(error) => format!("Parse Error: {}", error),
+                        };
+                        self.info_modal("Failed to delete record", &s);
+                    }
+                },
             }
         }
 

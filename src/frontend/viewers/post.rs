@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use crate::{
     backend::{
         record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef},
@@ -41,8 +43,15 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout) -> Response {
     puffin::profile_function!();
+    let post_og = post.clone();
+    let mut like: Option<bool> = None;
+    let mut repost: Option<bool> = None;
+    let post = {
+        puffin::profile_scope!("Mutex Lock");
+        &post_og.lock().unwrap()
+    };
     ui.style_mut().spacing.item_spacing.y = 40.0;
     if post.reason.is_some() || post.reply.is_some() {
         puffin::profile_scope!("Reason");
@@ -291,17 +300,19 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
             post_contents.allocate_space(vec2(0.0, 0.0));
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 puffin::profile_scope!("Action Buttons");
+                if post.post.viewer.is_none() {
+                    break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother   
+                }
                 if !action_buttons.is_rect_visible(action_buttons.cursor().with_max_y(action_buttons.cursor().top() + 30.0)) {
                     action_buttons.allocate_space(vec2(0.0, 30.0));
                     break 'render_action_buttons;
                 }
+
                 action_buttons.style_mut().spacing.item_spacing.x = 26.0;
 
-                let reply_enabled = if let Some(viewer) = &post.post.viewer {
-                    if let Some(dis) = viewer.reply_disabled {
-                        dis
-                    } else { true }
-                } else { false };
+                let reply_enabled = if let Some(dis) = post.post.viewer.as_ref().unwrap().reply_disabled {
+                    dis
+                } else { true };
                 action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
                     if circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None).clicked() {
                         let reply = BlueskyApiReplyRef {
@@ -311,18 +322,16 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
                         flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                     }
                 });
-                let rt_override = if let Some(viewer) = &post.post.viewer { if viewer.repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None } } else { None };
+                let rt_override = if post.post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override), |guh| {
-                    if guh.button("Repost").clicked() {
-                        let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
-                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordRequest(record)).unwrap();
+                    if guh.button(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).clicked() {
+                        repost = Some(rt_override.is_none());
                     }
                     if guh.add_enabled(false, egui::Button::new("Quote Repost")).clicked() {}
                 });
-                let like_override = if let Some(viewer) = &post.post.viewer { if viewer.like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None } } else { None };
+                let like_override = if post.post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
                 if circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override).clicked() {
-                    let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
-                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordRequest(record)).unwrap();
+                    like = Some(like_override.is_none());
                 }
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
                     if guh.button("Open in browser").clicked() {
@@ -342,6 +351,32 @@ pub fn post_viewer(ui: &mut Ui, post: &BlueskyApiTimelineResponseObject, backend
     ui.style_mut().spacing.item_spacing.y = 20.0;
 
     ui.allocate_space(vec2(0.0, 0.0)); // weird hack because spacing doesn't apply i guess?
+
+    if let Some(repost) = repost {
+        if repost {
+            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
+            backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
+        } else {
+            if let Some(viewer) = &post.post.viewer {
+                if let Some(viewer_repost) = &viewer.repost {
+                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_repost.split("/").last().unwrap().to_owned(), "app.bsky.feed.repost".to_owned(), post_og.clone())).unwrap();
+                }
+            }
+        }
+    }
+
+    if let Some(like) = like {
+        if like {
+            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
+            backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
+        } else {
+            if let Some(viewer) = &post.post.viewer {
+                if let Some(viewer_like) = &viewer.like {
+                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_like.split("/").last().unwrap().to_owned(), "app.bsky.feed.like".to_owned(), post_og.clone())).unwrap();
+                }
+            }
+        }
+    }
 
     ffs.response
 }
