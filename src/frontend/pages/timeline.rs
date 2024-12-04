@@ -10,13 +10,29 @@ use crate::{
             reason::BlueskyApiTimelineReason,
             reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject,
         }
-    }, frontend::{circle_button, flyouts::composer::ComposerFlyout, main::ClientFrontend, viewers}, image::LoadableImage, widgets::{click_context_menu, spinner::SegoeBootSpinner}
+    }, bridge::Bridge, frontend::{circle_button, flyouts::composer::ComposerFlyout, main::{ClientFrontend, ClientFrontendFlyout}, viewers}, image::{ImageCache, LoadableImage}, widgets::{click_context_menu, spinner::SegoeBootSpinner}
 };
+
+use super::FrontendMainView;
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
-impl ClientFrontend {
-    pub fn timeline_page(&mut self, ui: &mut egui::Ui) {
+pub struct FrontendTimelineView {
+    pub timeline: Vec<Arc<Mutex<BlueskyApiTimelineResponseObject>>>,
+    pub timeline_cursor: Option<String>,
+    pub post_highlight: (usize, f32, bool),
+}
+
+impl FrontendTimelineView {
+    pub fn new() -> Self {
+        Self {
+            timeline: Vec::new(),
+            timeline_cursor: Some("".to_owned()),
+            post_highlight: (0, 999.999, false),
+        }
+    }
+
+    pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout) {
         puffin::profile_function!();    
         let pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
 
@@ -57,7 +73,7 @@ impl ClientFrontend {
             };
             for i in 0..length {
                 puffin::profile_scope!("Post");
-                let res = viewers::post::post_viewer(tl, self.timeline[i].clone(), &self.backend, &self.image, &mut self.flyout);
+                let res = viewers::post::post_viewer(tl, self.timeline[i].clone(), backend, image, flyout);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
                 {   puffin::profile_scope!("Keyboard nav part B");
                     if scrolling /* do some max height check here*/ { 
@@ -80,7 +96,7 @@ impl ClientFrontend {
             tl.with_layout(Layout::top_down(egui::Align::Center), |spinner| {
                 let spinner_rect = spinner.add_sized(vec2(40.0, 40.0), SegoeBootSpinner::new().size(40.0).color(BSKY_BLUE)).rect;
                 if spinner.is_rect_visible(spinner_rect) && self.timeline_cursor.is_some() {
-                    self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
+                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
                     self.timeline_cursor = None;
                 }
             })
@@ -100,7 +116,7 @@ impl ClientFrontend {
         ui.painter().text(refresh_pos, Align2::CENTER_CENTER, "\u{E0F2}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
 
         if compose_button.clicked() {
-            self.flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
+            flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
         }
 
         if refresh_button.clicked() {

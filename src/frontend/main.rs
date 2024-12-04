@@ -1,5 +1,5 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::{collections::BTreeMap, sync::{Arc, Mutex}};
+use std::{borrow::BorrowMut, collections::BTreeMap, sync::{Arc, Mutex}};
 
 use crate::{
     backend::{
@@ -14,7 +14,7 @@ use crate::{
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
-use super::{flyouts::composer::ComposerFlyout, modals::important_error::ImportantErrorModal};
+use super::{flyouts::composer::ComposerFlyout, modals::important_error::ImportantErrorModal, pages::{timeline::FrontendTimelineView, FrontendMainView}};
 #[derive(serde::Deserialize, serde::Serialize)]
 pub enum ClientFrontendPage {
     LandingPage,
@@ -57,7 +57,6 @@ pub struct ClientFrontendModal {
 //#[serde(default)]
 pub struct ClientFrontend {
     pub ctx: egui::Context,
-    pub page: ClientFrontendPage,
     pub modal: ClientFrontendModal,
     pub flyout: ClientFrontendFlyout,
     pub backend: Bridge,
@@ -67,9 +66,8 @@ pub struct ClientFrontend {
     pub active: bool,
     pub authenticated: bool,
     pub profile: Option<BlueskyApiProfile>,
-    pub timeline: Vec<Arc<Mutex<BlueskyApiTimelineResponseObject>>>,
-    pub timeline_cursor: Option<String>,
-    pub post_highlight: (usize, f32, bool),
+
+    pub view_stack: Vec<FrontendMainView>,
 }
 
 impl ClientFrontend {
@@ -157,7 +155,6 @@ impl ClientFrontend {
         }*/
         Self {
             ctx: cc.egui_ctx.clone(),
-            page: ClientFrontendPage::LandingPage,
             modal: ClientFrontendModal { ctx: cc.egui_ctx.clone(), main: None },
             flyout: ClientFrontendFlyout { ctx: cc.egui_ctx.clone(), main: None, closing: false },
             backend: Bridge::new(cc.egui_ctx.clone()),
@@ -167,9 +164,11 @@ impl ClientFrontend {
             active: false,
             authenticated: false,
             profile: None,
-            timeline: Vec::new(),
-            timeline_cursor: Some(String::new()),
-            post_highlight: (0, 0.0, false),
+            view_stack: {
+                let mut vec = Vec::new();
+                vec.push(FrontendMainView::Login());
+                vec
+            }
         }
     }
 }
@@ -289,7 +288,8 @@ impl eframe::App for ClientFrontend {
                         crate::backend::main::BlueskyLoginResponse::Success(_, _) => {
                             self.active = true;
                             self.authenticated = true;
-                            self.page = ClientFrontendPage::TimelinePage;
+                            self.view_stack.clear();
+                            self.view_stack.push(FrontendMainView::Timeline(FrontendTimelineView::new()));
                             self.modal.close();
                         }
                         crate::backend::main::BlueskyLoginResponse::Info(variant) => match variant {
@@ -321,12 +321,22 @@ impl eframe::App for ClientFrontend {
                 }
                 crate::bridge::BackToFrontMsg::TimelineResponse(tl) => {
                     if let Ok(tl) = tl {
+                        //TODO: FIX
                         println!("Recieved {} posts", tl.feed.len());
-                        self.timeline_cursor = tl.cursor;
-                        for post in tl.feed {
-                            self.timeline.push(Arc::new(Mutex::new(post)));
+                        if let Some(page) = self.view_stack.last_mut() {
+                            match page {
+                                FrontendMainView::Timeline(ref mut data) => {
+                                    data.timeline_cursor = tl.cursor;
+                                    for post in tl.feed {
+                                        data.timeline.push(Arc::new(Mutex::new(post)));
+                                    }
+                                },
+                                FrontendMainView::Login() => {
+                                    println!("fix this :)");
+                                    todo!();
+                                },
+                            }
                         }
-                        //self.timeline.append(&mut tl.feed.clone());
                     }
                 }
                 crate::bridge::BackToFrontMsg::KeyringFailure(reason) => {
@@ -400,7 +410,7 @@ impl eframe::App for ClientFrontend {
                                 self.flyout.set(ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
                             }
                             if ui.add_enabled(self.authenticated, Button::new("Get Timeline")).clicked() {
-                                self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
+                                //self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
                             }
                         });
                     });
@@ -421,18 +431,25 @@ impl eframe::App for ClientFrontend {
             if self.draw_grid {
                 draw_unit_grid(&ctx);
             }
-            if self.active {
+            if self.active && self.view_stack.last().is_some() {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
-                    match self.page {
+                    let guh = self.view_stack.last_mut().unwrap();
+
+                    match guh {
+                        FrontendMainView::Login() => {
+                            FrontendMainView::landing(self, contents);
+                        },
+                        FrontendMainView::Timeline(ref mut data) => {
+                            data.render(contents, &self.backend, &self.image, &mut self.flyout);
+                        },
+                    }                    
+                    /*match self.page {
                         ClientFrontendPage::LandingPage => self.landing_page(contents),
                         ClientFrontendPage::TimelinePage => self.timeline_page(contents),
-                        //ClientFrontendPage::FeedPage(_) => todo!(),
-                        //ClientFrontendPage::ProfilePage(_) => todo!(),
-                        //ClientFrontendPage::SettingsPage => todo!(),
                         _ => {
                             contents.label("Unimplemented page");
                         }
-                    }
+                    }*/
                 });
             } else {
                 puffin::profile_scope!("Loading Screen");

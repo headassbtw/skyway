@@ -2,8 +2,10 @@ use egui::{vec2, FontId, Layout, UiBuilder};
 
 use crate::frontend::{main::ClientFrontend, modals::login::LoginModal};
 
-impl ClientFrontend {
-	pub fn landing_page(&mut self, ui: &mut egui::Ui) {
+use super::FrontendMainView;
+
+impl FrontendMainView {
+	pub fn landing(host: &mut ClientFrontend, ui: &mut egui::Ui) {
 		let ui_rect = egui::Rect::from_center_size(ui.ctx().screen_rect().center(), vec2(200.0, 40.0));
 
 		ui.allocate_new_ui(UiBuilder::new().max_rect(ui_rect), |ui| {
@@ -13,7 +15,7 @@ impl ClientFrontend {
 				ui.label("To use Bluesky, ");
 				if ui.link("sign in").clicked() {
 					let data = LoginModal::new();
-					self.modal.set(crate::frontend::main::ClientFrontendModalVariant::LoginModal(data));
+					host.modal.set(crate::frontend::main::ClientFrontendModalVariant::LoginModal(data));
 				}
 				ui.label(".");
 			});
