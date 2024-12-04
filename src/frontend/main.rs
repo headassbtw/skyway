@@ -122,7 +122,6 @@ impl ClientFrontend {
             font.tweak.baseline_offset_factor = 0.04;
             font
         });
-
         fonts.font_data.insert("Segoe Emojis".to_owned(), {
             let mut font = egui::FontData::from_static(include_bytes!("../../seguiemj.ttf"));
             font.tweak.baseline_offset_factor = 0.4;

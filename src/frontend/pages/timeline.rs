@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Color32, FontId, Galley, Id, Image, Layout, Rect, Rounding, ScrollArea, Stroke, TextFormat, TextureId, UiBuilder, Vec2};
 
@@ -6,7 +8,7 @@ use crate::{
         record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef}, responses::timeline::{
             embed::{BlueskyApiTimelineEmbedRecordView, BlueskyApiTimelinePostEmbedView},
             reason::BlueskyApiTimelineReason,
-            reply::BlueskyApiTimelineReasonReply,
+            reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject,
         }
     }, frontend::{circle_button, flyouts::composer::ComposerFlyout, main::ClientFrontend, viewers}, image::LoadableImage, widgets::{click_context_menu, spinner::SegoeBootSpinner}
 };
