@@ -3,19 +3,19 @@ use std::sync::{Arc, Mutex};
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
 
 use crate::{
-    backend::responses::timeline::BlueskyApiTimelineResponseObject,
+    backend::responses::timeline::{reason::BlueskyApiTimelineReason, reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject},
     bridge::Bridge,
     frontend::{flyouts::composer::ComposerFlyout, main::ClientFrontendFlyout, viewers},
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
 };
 
-use super::{FrontendMainView, MainViewProposition};
+use super::MainViewProposition;
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub struct FrontendTimelineView {
-    pub timeline: Vec<Arc<Mutex<BlueskyApiTimelineResponseObject>>>,
+    pub timeline: Vec<BlueskyApiTimelineResponseObject>,
     pub timeline_cursor: Option<String>,
     pub post_highlight: (usize, f32, bool),
 }
@@ -28,7 +28,7 @@ impl FrontendTimelineView {
     pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> &str {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
-        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).max_height(ui.cursor().height()).show(ui, |tl| {
+        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
             let length = if self.timeline.len() <= 0 { 0 } else { self.timeline.len() - 1 };
 
             // keyboard nav polling
@@ -62,7 +62,61 @@ impl FrontendTimelineView {
             };
             for i in 0..length {
                 puffin::profile_scope!("Post");
-                let res = viewers::post::post_viewer(tl, self.timeline[i].clone(), backend, image, flyout, new_view);
+                let post = self.timeline[i].clone();
+                if post.reason.is_some() || post.reply.is_some() {
+                    puffin::profile_scope!("Reason");
+                    tl.style_mut().spacing.item_spacing = vec2(10.0, 2.0);
+                    tl.with_layout(Layout::left_to_right(egui::Align::TOP), |name| {
+                        name.allocate_space(vec2(60.0, 2.0));
+                        name.style_mut().spacing.item_spacing.x = 0.0;
+                        if let Some(reason) = &post.reason {
+                            match reason {
+                                BlueskyApiTimelineReason::Repost(repost) => {
+                                    name.weak(format!(
+                                        "\u{E201} Reposted by {}",
+                                        if let Some(dn) = &repost.by.display_name {
+                                            if dn.len() > 0 {
+                                                dn
+                                            } else {
+                                                &repost.by.handle
+                                            }
+                                        } else {
+                                            &repost.by.handle
+                                        }
+                                    ));
+                                }
+                                BlueskyApiTimelineReason::Pin => {
+                                    name.weak("Pinned");
+                                }
+                            }
+                        } else if let Some(reply) = &post.reply {
+                            match &reply.parent {
+                                BlueskyApiTimelineReasonReply::Post(post) => {
+                                    name.weak(format!(
+                                        "\u{E200} Replying to {}",
+                                        if let Some(name) = &post.author.display_name {
+                                            if name.len() > 0 {
+                                                name
+                                            } else {
+                                                &post.author.handle
+                                            }
+                                        } else {
+                                            &post.author.handle
+                                        }
+                                    ));
+                                }
+                                BlueskyApiTimelineReasonReply::NotFound => {
+                                    name.weak("\u{E200} Replying to an unknown post");
+                                }
+                                BlueskyApiTimelineReasonReply::Blocked => {
+                                    name.weak("\u{E200} Replying to a blocked post");
+                                }
+                            }
+                        }
+                    });
+                    tl.style_mut().spacing.item_spacing.y = 10.0;
+                }
+                let res = viewers::post::post_viewer(tl, post.post, backend, image, flyout, new_view);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
                 {
                     puffin::profile_scope!("Keyboard nav part B");

@@ -4,10 +4,8 @@ use crate::{
     backend::{
         record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef},
         responses::timeline::{
-            embed::{BlueskyApiTimelineEmbedRecordView, BlueskyApiTimelinePostEmbedView},
-            reason::BlueskyApiTimelineReason,
-            reply::BlueskyApiTimelineReasonReply,
-            BlueskyApiTimelineResponseObject,
+            embed::{BlueskyApiTimelineEmbedRecordView, BlueskyApiTimelinePostEmbedView}, BlueskyApiPostView, BlueskyApiTimelineResponseObject
+
         },
     },
     bridge::Bridge,
@@ -46,7 +44,7 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -56,66 +54,13 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
         &post_og.lock().unwrap()
     };
     ui.style_mut().spacing.item_spacing.y = 40.0;
-    if post.reason.is_some() || post.reply.is_some() {
-        puffin::profile_scope!("Reason");
-        ui.style_mut().spacing.item_spacing = vec2(10.0, 2.0);
-        ui.with_layout(Layout::left_to_right(egui::Align::TOP), |name| {
-            name.allocate_space(vec2(60.0, 2.0));
-            name.style_mut().spacing.item_spacing.x = 0.0;
-            if let Some(reason) = &post.reason {
-                match reason {
-                    BlueskyApiTimelineReason::Repost(repost) => {
-                        name.weak(format!(
-                            "\u{E201} Reposted by {}",
-                            if let Some(dn) = &repost.by.display_name {
-                                if dn.len() > 0 {
-                                    dn
-                                } else {
-                                    &repost.by.handle
-                                }
-                            } else {
-                                &repost.by.handle
-                            }
-                        ));
-                    }
-                    BlueskyApiTimelineReason::Pin => {
-                        name.weak("Pinned");
-                    }
-                }
-            } else if let Some(reply) = &post.reply {
-                match &reply.parent {
-                    BlueskyApiTimelineReasonReply::Post(post) => {
-                        name.weak(format!(
-                            "\u{E200} Replying to {}",
-                            if let Some(name) = &post.author.display_name {
-                                if name.len() > 0 {
-                                    name
-                                } else {
-                                    &post.author.handle
-                                }
-                            } else {
-                                &post.author.handle
-                            }
-                        ));
-                    }
-                    BlueskyApiTimelineReasonReply::NotFound => {
-                        name.weak("\u{E200} Replying to an unknown post");
-                    }
-                    BlueskyApiTimelineReasonReply::Blocked => {
-                        name.weak("\u{E200} Replying to a blocked post");
-                    }
-                }
-            }
-        });
-        ui.style_mut().spacing.item_spacing.y = 10.0;
-    }
 
     let ffs = ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
         puffin::profile_scope!("Main Container");
         ui.style_mut().spacing.item_spacing = vec2(10.0, 10.0);
         let (_, pfp_rect) = ui.allocate_space(vec2(60.0, 60.0));
         if ui.is_rect_visible(pfp_rect) {
-            let tex: Option<TextureId> = if let Some(avatar) = &post.post.author.avatar {
+            let tex: Option<TextureId> = if let Some(avatar) = &post.author.avatar {
                 match img_cache.get_image(avatar) {
                     LoadableImage::Unloaded | LoadableImage::Loading => None,
                     LoadableImage::Loaded(texture_id) => Some(texture_id),
@@ -139,10 +84,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 if !name.is_visible() {
                     break 'render_name;
                 }
-                let guh_fr = name.painter().layout_no_wrap(offset_time(post.post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
+                let guh_fr = name.painter().layout_no_wrap(offset_time(post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
                 name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
-                let display_name = if let Some(display_name) = &post.post.author.display_name {
+                let display_name = if let Some(display_name) = &post.author.display_name {
                     if display_name.len() > (0 as usize) {
                         // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
                         Some(name.add(egui::Label::new(egui::RichText::new(display_name).size(20.0).color(name.style().visuals.text_color())).selectable(false).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand))
@@ -152,7 +97,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 } else {
                     None
                 };
-                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
+                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
 
                 let click_response = if let Some(dn) = display_name {
                     if dn.hovered() {
@@ -165,20 +110,20 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 };
 
                 if click_response {
-                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.post.author.did.clone())));
+                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
                 }
                 
                 name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
                 name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
             });
-            if post.post.record.text.len() > (0 as usize) {
+            if post.record.text.len() > (0 as usize) {
                 puffin::profile_scope!("Text");
                 let mut job = LayoutJob::default();
                 job.wrap = TextWrapping::wrap_at_width(post_contents.cursor().width());
                 let font_id = FontId::proportional(14.0);
-                job.text = post.post.record.text.clone();
+                job.text = post.record.text.clone();
 
-                /* if let Some(facets) = &post.post.record.facets {
+                /* if let Some(facets) = &post.record.facets {
                     let mut prev: usize = 0;
                     facets.sort_by(|a,b| {
                         a.index.byte_start.cmp(&b.index.byte_start)
@@ -201,12 +146,12 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                     }
                 } else */
                 {
-                    job.append(&post.post.record.text, 0.0, TextFormat::simple(font_id, post_contents.style().visuals.noninteractive().fg_stroke.color));
+                    job.append(&post.record.text, 0.0, TextFormat::simple(font_id, post_contents.style().visuals.noninteractive().fg_stroke.color));
                 }
 
                 let galley = post_contents.fonts(|f| f.layout_job(job));
                 if post_contents.add(egui::Label::new(galley).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.post.uri.clone())));
+                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone())));
                 }
             }
 
@@ -214,7 +159,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
 
             const MEDIA_SIZE: f32 = 180.0;
 
-            if let Some(embed) = &post.post.embed {
+            if let Some(embed) = &post.embed {
                 puffin::profile_scope!("Embed");
                 match embed {
                     BlueskyApiTimelinePostEmbedView::Images { images } => 'render_images: {
@@ -226,7 +171,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                             break 'render_images;
                         }
                         post_contents.allocate_new_ui(UiBuilder::default().max_rect(img_rect), |container| {
-                            ScrollArea::horizontal().max_width(img_rect.width()).max_height(img_rect.height()).vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.post.cid).show(container, |container| {
+                            ScrollArea::horizontal().max_width(img_rect.width()).max_height(img_rect.height()).vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.cid).show(container, |container| {
                                 container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
                                     for img in images {
                                         if !container.is_visible() {
@@ -341,7 +286,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
             post_contents.allocate_space(vec2(0.0, 0.0));
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 puffin::profile_scope!("Action Buttons");
-                if post.post.viewer.is_none() {
+                if post.viewer.is_none() {
                     break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother
                 }
                 if !action_buttons.is_rect_visible(action_buttons.cursor().with_max_y(action_buttons.cursor().top() + 30.0)) {
@@ -351,31 +296,31 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
 
                 action_buttons.style_mut().spacing.item_spacing.x = 26.0;
 
-                let reply_enabled = if let Some(dis) = post.post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
+                let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
                 action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
                     if circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None).clicked() {
                         let reply = BlueskyApiReplyRef {
-                            root: if let Some(reply) = &post.post.record.reply { reply.root.clone() } else { BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() } },
-                            parent: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() },
+                            root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
+                            parent: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
                         };
                         flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                     }
                 });
-                let rt_override = if post.post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
+                let rt_override = if post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override), |guh| {
                     if guh.button(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).clicked() {
                         repost = Some(rt_override.is_none());
                     }
                     if guh.add_enabled(false, egui::Button::new("Quote Repost")).clicked() {}
                 });
-                let like_override = if post.post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
+                let like_override = if post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
                 if circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override).clicked() {
                     like = Some(like_override.is_none());
                 }
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
                     if guh.button("Open in browser").clicked() {
-                        let id = post.post.uri.split("/").last().unwrap();
-                        let handle = if post.post.author.handle.eq("handle.invalid") { &post.post.author.did } else { &post.post.author.handle };
+                        let id = post.uri.split("/").last().unwrap();
+                        let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
                         let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
 
                         #[cfg(target_os = "linux")]
@@ -393,10 +338,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
 
     if let Some(repost) = repost {
         if repost {
-            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
-            if let Some(viewer) = &post.post.viewer {
+            if let Some(viewer) = &post.viewer {
                 if let Some(viewer_repost) = &viewer.repost {
                     backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_repost.split("/").last().unwrap().to_owned(), "app.bsky.feed.repost".to_owned(), post_og.clone())).unwrap();
                 }
@@ -406,10 +351,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
 
     if let Some(like) = like {
         if like {
-            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.post.uri.clone(), cid: post.post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
-            if let Some(viewer) = &post.post.viewer {
+            if let Some(viewer) = &post.viewer {
                 if let Some(viewer_like) = &viewer.like {
                     backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_like.split("/").last().unwrap().to_owned(), "app.bsky.feed.like".to_owned(), post_og.clone())).unwrap();
                 }

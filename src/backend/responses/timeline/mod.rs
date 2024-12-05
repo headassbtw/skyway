@@ -1,3 +1,5 @@
+use std::sync::{Arc, Mutex};
+
 use reason::BlueskyApiTimelineReason;
 use reply::BlueskyApiTimelineReasonReplyChunk;
 use serde_json;
@@ -10,7 +12,7 @@ pub mod embed;
 pub mod reason;
 pub mod reply;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiTimelineResponse {
 	pub feed: Vec<BlueskyApiTimelineResponseObject>,
@@ -26,10 +28,10 @@ pub struct BlueskyApiTimelineResponseRaw {
 	pub cursor: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiTimelineResponseObject {
-	pub post: BlueskyApiPostView,
+	pub post: Arc<Mutex<BlueskyApiPostView>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub reply: Option<BlueskyApiTimelineReasonReplyChunk>,
 	#[serde(skip_serializing_if = "Option::is_none")]

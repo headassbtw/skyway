@@ -83,7 +83,7 @@ impl FrontendMainViewStack {
                 ""
             }
             FrontendMainView::Timeline(ref mut data) => data.render(ui, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Thread(ref mut data) => data.render(ui, backend, image),
+            FrontendMainView::Thread(ref mut data) => data.render(ui, backend, image, flyout, &mut self.propose),
             FrontendMainView::Profile(ref mut data) => data.render(ui, backend, image),
         };
         ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);

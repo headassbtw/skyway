@@ -1,19 +1,19 @@
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use serde::{Serialize, Deserialize};
 
 use super::{responses::timeline::BlueskyApiPostView, BlueskyApiError, ClientBackend};
 
-#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 pub struct BlueskyApiThreadViewPost {
-	pub post: BlueskyApiPostView,
+	pub post: Arc<Mutex<BlueskyApiPostView>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub parent: Option<Arc<BlueskyApiThreadResponse>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub replies: Option<Vec<BlueskyApiThreadResponse>>,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(tag = "$type")]
 pub enum BlueskyApiThreadResponse {
 	#[serde(rename = "app.bsky.feed.defs#threadViewPost")]
@@ -24,7 +24,7 @@ pub enum BlueskyApiThreadResponse {
 	Blocked(serde_json::Value)
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 pub struct BlueskyApiGetThreadResponse {
 	pub thread: BlueskyApiThreadResponse,
 	#[serde(skip_serializing_if = "Option::is_none")]

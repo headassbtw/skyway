@@ -321,7 +321,7 @@ impl eframe::App for ClientFrontend {
                                 FrontendMainView::Timeline(ref mut data) => {
                                     data.timeline_cursor = tl.cursor;
                                     for post in tl.feed {
-                                        data.timeline.push(Arc::new(Mutex::new(post)));
+                                        data.timeline.push(post);
                                     }
                                 },
                                 FrontendMainView::Login() |

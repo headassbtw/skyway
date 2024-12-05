@@ -1,5 +1,5 @@
 use crate::backend::{
-    main::BlueskyLoginResponse, profile::BlueskyApiProfile, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, responses::timeline::{BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
+    main::BlueskyLoginResponse, profile::BlueskyApiProfile, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, responses::timeline::{BlueskyApiPostView, BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
 };
 use anyhow::Result;
 use std::sync::{
@@ -17,10 +17,10 @@ pub enum FrontToBackMsg {
     GetThreadRequest(String),
 
     CreateRecordRequest(BlueskyApiRecord),
-    CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<BlueskyApiTimelineResponseObject>>),
+    CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<BlueskyApiPostView>>),
 
     DeleteRecordRequest(String, String),
-    DeleteRecordUnderPostRequest(String, String, Arc<Mutex<BlueskyApiTimelineResponseObject>>),
+    DeleteRecordUnderPostRequest(String, String, Arc<Mutex<BlueskyApiPostView>>),
 }
 
 pub enum BackToFrontMsg {
@@ -130,7 +130,7 @@ impl Bridge {
                     BlueskyApiRecord::Like(record) => match api.create_record(BlueskyApiRecord::Like(record)).await {
                         Ok(res) => {
                             let mut post = post_mod.lock().unwrap();
-                            if let Some(viewer) = &mut post.post.viewer {
+                            if let Some(viewer) = &mut post.viewer {
                                 viewer.like = Some(res.uri);
                             }
                         }
@@ -139,7 +139,7 @@ impl Bridge {
                     BlueskyApiRecord::Repost(record) => match api.create_record(BlueskyApiRecord::Repost(record)).await {
                         Ok(res) => {
                             let mut post = post_mod.lock().unwrap();
-                            if let Some(viewer) = &mut post.post.viewer {
+                            if let Some(viewer) = &mut post.viewer {
                                 viewer.repost = Some(res.uri);
                             }
                         }
@@ -154,12 +154,12 @@ impl Bridge {
                     match api.delete_record(rkey, nsid.clone()).await {
                         Ok(_) => match nsid.as_str() {
                             "app.bsky.feed.like" => {
-                                if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
+                                if let Some(viewer) = &mut post_mod.lock().unwrap().viewer {
                                     viewer.like = None;
                                 }
                             }
                             "app.bsky.feed.repost" => {
-                                if let Some(viewer) = &mut post_mod.lock().unwrap().post.viewer {
+                                if let Some(viewer) = &mut post_mod.lock().unwrap().viewer {
                                     viewer.repost = None;
                                 }
                             }
