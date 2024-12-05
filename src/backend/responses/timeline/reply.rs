@@ -1,14 +1,14 @@
 use serde_json;
 use serde::{self, Serialize, Deserialize};
 
-use super::BlueskyApiTimelinePostResponse;
+use super::BlueskyApiPostView;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
 pub enum BlueskyApiTimelineReasonReply {
 	#[serde(rename = "app.bsky.feed.defs#postView")]
-	Post(BlueskyApiTimelinePostResponse),
+	Post(BlueskyApiPostView),
 	#[serde(rename = "app.bsky.feed.defs#notFoundPost")]
 	NotFound,
 	#[serde(rename = "app.bsky.feed.defs#blockedPost")]

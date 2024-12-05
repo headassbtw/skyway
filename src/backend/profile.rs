@@ -5,11 +5,18 @@ use serde::{self, Deserialize, Serialize};
 
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "lowercase")]
-pub enum BlueskyApiProfileAssociatedChat {
+pub enum BlueskyApiProfileAssociatedChatAllowIncoming {
   All,
   None,
   Following
 }
+
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct BlueskyApiProfileAssociatedChat {
+  pub allow_incoming: BlueskyApiProfileAssociatedChatAllowIncoming,
+}
+
 
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]

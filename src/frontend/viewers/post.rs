@@ -165,9 +165,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 };
 
                 if click_response {
-                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new()));
+                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.post.author.did.clone())));
                 }
-
+                
                 name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
                 name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
             });

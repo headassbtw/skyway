@@ -29,7 +29,7 @@ pub struct BlueskyApiTimelineResponseRaw {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiTimelineResponseObject {
-	pub post: BlueskyApiTimelinePostResponse,
+	pub post: BlueskyApiPostView,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub reply: Option<BlueskyApiTimelineReasonReplyChunk>,
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -123,7 +123,7 @@ pub struct BlueskyApiFeedViewerState {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct BlueskyApiTimelinePostResponse {
+pub struct BlueskyApiPostView {
 	pub uri: String,
 	pub cid: String,
 	pub author: BlueskyApiTimelinePostAuthor,

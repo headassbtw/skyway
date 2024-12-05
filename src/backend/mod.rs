@@ -9,6 +9,7 @@ pub mod timeline;
 pub mod record;
 pub mod profile;
 pub mod simple_actions;
+pub mod thread;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct BlueskyApiErrorMessage {
@@ -16,7 +17,7 @@ pub struct BlueskyApiErrorMessage {
 	pub message: String,
 }
 
-#[derive(std::fmt::Debug)]
+#[derive(Debug)]
 pub enum BlueskyApiError{
 	BadRequest(BlueskyApiErrorMessage),
 	Unauthorized(BlueskyApiErrorMessage),

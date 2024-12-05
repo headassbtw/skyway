@@ -6,10 +6,7 @@ use crate::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
         profile::BlueskyApiProfile,
         BlueskyApiError,
-    },
-    bridge::Bridge,
-    image::ImageCache,
-    widgets::spinner::SegoeBootSpinner,
+    }, bridge::Bridge, frontend::pages::thread, image::ImageCache, widgets::spinner::SegoeBootSpinner
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -362,7 +359,25 @@ impl eframe::App for ClientFrontend {
                         self.info_modal("Failed to delete record", &s);
                     },
                 },
-                crate::bridge::BackToFrontMsg::ProfileResponse(_, _) => todo!(),
+                crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
+                    if let Some(page) = self.view_stack.top() {
+                        match page {
+                            FrontendMainView::Login() |
+                            FrontendMainView::Timeline(_) |
+                            FrontendMainView::Thread(_) => todo!(),
+                            FrontendMainView::Profile(data) => {
+                                if data.id_cmp == id {
+                                    if let Ok(profile) = profile {
+                                        data.profile_data = Some(profile);
+                                        data.loading = false;
+                                    } else if let Err(err) = profile {
+                                        self.info_modal("Failed to get profile", &format!("{:?}", err));
+                                    }
+                                }
+                            },
+                        }
+                    }
+                },
                 crate::bridge::BackToFrontMsg::RecordDeletionResponse(data) => {
                     if let Err(err) = data {
                         let s = match err {
@@ -373,6 +388,29 @@ impl eframe::App for ClientFrontend {
                         };
                         self.info_modal("Failed to delete record", &s);
                     }
+                },
+                crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
+                    if let Some(page) = self.view_stack.top() {
+                        match page {
+                            FrontendMainView::Login() |
+                            FrontendMainView::Timeline(_) |
+                            FrontendMainView::Profile(_) => todo!(),
+                            FrontendMainView::Thread(data) => {
+                                if data.id_cmp == uri {
+                                    match res {
+                                        Ok(thread) => {
+                                            data.data = Some(thread);
+                                            data.loading = false;
+                                        },
+                                        Err(err) => {
+                                            self.info_modal("Failed to get thread", &format!("{:?}", err));
+                                        },
+                                    }
+                                }
+                            },
+                        }
+                    }
+                    
                 },
             }
         }

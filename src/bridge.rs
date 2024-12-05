@@ -1,9 +1,5 @@
 use crate::backend::{
-    main::BlueskyLoginResponse,
-    profile::BlueskyApiProfile,
-    record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
-    responses::timeline::{BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject},
-    BlueskyApiError, ClientBackend,
+    main::BlueskyLoginResponse, profile::BlueskyApiProfile, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, responses::timeline::{BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
 };
 use anyhow::Result;
 use std::sync::{
@@ -17,8 +13,12 @@ pub enum FrontToBackMsg {
     LoginRequest2FA(String, String, String),
 
     GetTimelineRequest(Option<String>, Option<u32>),
+    GetProfileRequest(String),
+    GetThreadRequest(String),
+
     CreateRecordRequest(BlueskyApiRecord),
     CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<BlueskyApiTimelineResponseObject>>),
+
     DeleteRecordRequest(String, String),
     DeleteRecordUnderPostRequest(String, String, Arc<Mutex<BlueskyApiTimelineResponseObject>>),
 }
@@ -29,7 +29,8 @@ pub enum BackToFrontMsg {
     KeyringFailure(String),
     RecordCreationResponse(Result<BlueskyApiCreateRecordResponse, BlueskyApiError>),
     RecordDeletionResponse(Result<BlueskyApiDeleteRecordResponse, BlueskyApiError>),
-    ProfileResponse(String, BlueskyApiProfile),
+    ProfileResponse(String, Result<BlueskyApiProfile, BlueskyApiError>),
+    ThreadResponse(String, Result<BlueskyApiGetThreadResponse, BlueskyApiError>),
 }
 
 pub struct Bridge {
@@ -112,6 +113,12 @@ impl Bridge {
                 FrontToBackMsg::LoginRequest2FA(_, _, _) => todo!(),
                 FrontToBackMsg::GetTimelineRequest(cursor, limit) => {
                     tx.send(BackToFrontMsg::TimelineResponse(api.get_timeline(cursor, limit).await))?;
+                }
+                FrontToBackMsg::GetProfileRequest(did) => {
+                    tx.send(BackToFrontMsg::ProfileResponse(did.clone(), api.get_profile(did).await))?;
+                }
+                FrontToBackMsg::GetThreadRequest(uri) => {
+                    tx.send(BackToFrontMsg::ThreadResponse(uri.clone(), api.get_thread(uri, None, None).await))?;
                 }
                 FrontToBackMsg::CreateRecordRequest(record) => {
                     tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
