@@ -14,7 +14,7 @@ use crate::{
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
-use super::{flyouts::composer::ComposerFlyout, modals::important_error::ImportantErrorModal, pages::{timeline::FrontendTimelineView, FrontendMainView}};
+use super::{flyouts::composer::ComposerFlyout, modals::important_error::ImportantErrorModal, pages::{timeline::FrontendTimelineView, FrontendMainView, FrontendMainViewStack}};
 #[derive(serde::Deserialize, serde::Serialize)]
 pub enum ClientFrontendPage {
     LandingPage,
@@ -67,7 +67,7 @@ pub struct ClientFrontend {
     pub authenticated: bool,
     pub profile: Option<BlueskyApiProfile>,
 
-    pub view_stack: Vec<FrontendMainView>,
+    pub view_stack: FrontendMainViewStack,
 }
 
 impl ClientFrontend {
@@ -164,11 +164,7 @@ impl ClientFrontend {
             active: false,
             authenticated: false,
             profile: None,
-            view_stack: {
-                let mut vec = Vec::new();
-                vec.push(FrontendMainView::Login());
-                vec
-            }
+            view_stack: FrontendMainViewStack::new(cc.egui_ctx.clone(), FrontendMainView::Login()),
         }
     }
 }
@@ -279,6 +275,7 @@ impl eframe::App for ClientFrontend {
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         puffin::profile_function!();
+
         if let Ok(proc) = self.backend.frontend_listener.try_recv() {
             puffin::profile_scope!("Bridge processing");
             match proc {
@@ -288,8 +285,7 @@ impl eframe::App for ClientFrontend {
                         crate::backend::main::BlueskyLoginResponse::Success(_, _) => {
                             self.active = true;
                             self.authenticated = true;
-                            self.view_stack.clear();
-                            self.view_stack.push(FrontendMainView::Timeline(FrontendTimelineView::new()));
+                            self.view_stack.set(FrontendMainView::Timeline(FrontendTimelineView::new()));
                             self.modal.close();
                         }
                         crate::backend::main::BlueskyLoginResponse::Info(variant) => match variant {
@@ -323,7 +319,7 @@ impl eframe::App for ClientFrontend {
                     if let Ok(tl) = tl {
                         //TODO: FIX
                         println!("Recieved {} posts", tl.feed.len());
-                        if let Some(page) = self.view_stack.last_mut() {
+                        if let Some(page) = self.view_stack.top() {
                             match page {
                                 FrontendMainView::Timeline(ref mut data) => {
                                     data.timeline_cursor = tl.cursor;
@@ -331,7 +327,9 @@ impl eframe::App for ClientFrontend {
                                         data.timeline.push(Arc::new(Mutex::new(post)));
                                     }
                                 },
-                                FrontendMainView::Login() => {
+                                FrontendMainView::Login() |
+                                FrontendMainView::Thread(_) |
+                                FrontendMainView::Profile(_) => {
                                     println!("fix this :)");
                                     todo!();
                                 },
@@ -431,18 +429,10 @@ impl eframe::App for ClientFrontend {
             if self.draw_grid {
                 draw_unit_grid(&ctx);
             }
-            if self.active && self.view_stack.last().is_some() {
+            if self.active {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
-                    let guh = self.view_stack.last_mut().unwrap();
-
-                    match guh {
-                        FrontendMainView::Login() => {
-                            FrontendMainView::landing(self, contents);
-                        },
-                        FrontendMainView::Timeline(ref mut data) => {
-                            data.render(contents, &self.backend, &self.image, &mut self.flyout);
-                        },
-                    }                    
+                    self.view_stack.render(contents, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
+                    
                     /*match self.page {
                         ClientFrontendPage::LandingPage => self.landing_page(contents),
                         ClientFrontendPage::TimelinePage => self.timeline_page(contents),
@@ -499,9 +489,11 @@ impl eframe::App for ClientFrontend {
                         self.flyout.close();
                     }
 
-                    let click_off_rect = ctx.screen_rect().with_max_x(content_rect.left());
-                    if ui.allocate_rect(click_off_rect, egui::Sense::click()).clicked() {
-                        self.flyout.close();
+                    if !anim_state.1 {
+                        let click_off_rect = ctx.screen_rect().with_max_x(content_rect.left());
+                        if ui.allocate_rect(click_off_rect, egui::Sense::click()).clicked() {
+                            self.flyout.close();
+                        }
                     }
 
                     ui.style_mut().visuals.selection.bg_fill = Color32::from_rgb(144, 209, 255); // default light mode selection fill

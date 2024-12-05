@@ -15,6 +15,7 @@ use crate::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
+        pages::{profile::FrontendProfileView, thread::FrontendThreadView, FrontendMainView, FrontendMainViewStack, MainViewProposition},
     },
     image::{ImageCache, LoadableImage},
     widgets::click_context_menu,
@@ -45,7 +46,7 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -133,7 +134,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
         ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
             let the_width_you_care_about = post_contents.cursor().width();
             post_contents.set_max_width(the_width_you_care_about);
-            post_contents.with_layout(Layout::left_to_right(egui::Align::TOP), |name| 'render_name: {
+            post_contents.allocate_new_ui(UiBuilder::new().layout(Layout::left_to_right(egui::Align::TOP)), |name| 'render_name: {
                 puffin::profile_scope!("Name");
                 if !name.is_visible() {
                     break 'render_name;
@@ -141,22 +142,35 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 let guh_fr = name.painter().layout_no_wrap(offset_time(post.post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
                 name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
-                let heavy_display_name = if let Some(display_name) = &post.post.author.display_name {
+                let display_name = if let Some(display_name) = &post.post.author.display_name {
                     if display_name.len() > (0 as usize) {
                         // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
-                        name.label(egui::RichText::new(display_name).size(20.0));
-                        false
+                        Some(name.add(egui::Label::new(egui::RichText::new(display_name).size(20.0).color(name.style().visuals.text_color())).selectable(false).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand))
                     } else {
-                        true
+                        None
                     }
                 } else {
-                    true
+                    None
                 };
-                let name_res = if heavy_display_name { name.label(egui::RichText::new(&post.post.author.handle).size(20.0)) } else { name.weak(egui::RichText::new(&post.post.author.handle).font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)) };
+                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
+
+                let click_response = if let Some(dn) = display_name {
+                    if dn.hovered() {
+                        dn.clicked()
+                    } else {
+                        name_res.clicked()
+                    }
+                } else {
+                    name_res.clicked()
+                };
+
+                if click_response {
+                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new()));
+                }
+
                 name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
                 name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
             });
-
             if post.post.record.text.len() > (0 as usize) {
                 puffin::profile_scope!("Text");
                 let mut job = LayoutJob::default();
@@ -191,7 +205,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiTimelineResponseObject
                 }
 
                 let galley = post_contents.fonts(|f| f.layout_job(job));
-                post_contents.label(galley);
+                if post_contents.add(egui::Label::new(galley).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.post.uri.clone())));
+                }
             }
 
             //post_contents.painter().rect(post_contents.cursor(), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, Color32::ORANGE));
