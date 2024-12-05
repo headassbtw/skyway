@@ -1,7 +1,7 @@
 use std::{collections::HashMap, fs::{self, File}, io::Write, path::PathBuf, sync::{mpsc::{Receiver, Sender}, Arc, Mutex}, hash::{DefaultHasher, Hash, Hasher}};
 use image::{ImageReader, DynamicImage};
 use directories::ProjectDirs;
-use egui::{ColorImage, TextureHandle, TextureId, TextureOptions};
+use egui::{ColorImage, TextureHandle, TextureId, TextureOptions, Vec2};
 
 
 pub enum LoadableImage {
@@ -10,7 +10,7 @@ pub enum LoadableImage {
     /// In progress
     Loading,
     /// Here ya go
-    Loaded(TextureId)
+    Loaded(TextureId, Vec2)
 }
 
 enum LoaderRequest {
@@ -169,12 +169,12 @@ impl ImageCache {
         self.tx.send(LoaderRequest::Shutdown).unwrap();
     }
 
-    /// Accepts a `resdb://` string and gets an egui-drawable image (or lack thereof) from it
+    /// Accepts a URL and gets an egui-drawable image (or lack thereof) from it
     pub fn get_image(&self, id: &String) -> LoadableImage {
         let mut db = self.db.lock().unwrap();
         if let Some(img) = db.get(id) {
             if let Some(id) = img {
-                return LoadableImage::Loaded(id.id());
+                return LoadableImage::Loaded(id.id(), id.size_vec2());
             } else {
                 return LoadableImage::Loading;
             }

@@ -1,4 +1,4 @@
-use egui::{pos2, Align2, Color32, FontId, Rect, Rounding, Ui};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, Ui, UiBuilder};
 use profile::FrontendProfileView;
 use thread::FrontendThreadView;
 use timeline::FrontendTimelineView;
@@ -27,28 +27,32 @@ pub struct FrontendMainViewStack {
     propose: MainViewProposition, // add animaiton state and whatnot
 }
 
-pub struct MainViewProposition(Option<FrontendMainView>);
+pub struct MainViewProposition(Option<FrontendMainView>, egui::Context);
 
 impl MainViewProposition {
 	pub fn set(&mut self,to: FrontendMainView) {
 		self.0 = Some(to);
 	}
 
-	pub fn new() -> Self {
-		Self(None)
+	pub fn new(ctx: egui::Context) -> Self {
+		Self(None, ctx)
 	}
+}
+
+fn ease_out_cubic(x: f32) -> f32 {
+    return 1.0 - f32::powf(1.0 - x, 3.0);
 }
 
 impl FrontendMainViewStack {
     pub fn new(ctx: egui::Context, initial: FrontendMainView) -> Self {
         Self {
-            ctx,
+            ctx: ctx.clone(),
             stack: {
                 let mut stack = Vec::new();
                 stack.push(initial);
                 stack
             },
-            propose: MainViewProposition::new(),
+            propose: MainViewProposition::new(ctx),
         }
     }
 
@@ -63,29 +67,35 @@ impl FrontendMainViewStack {
         if self.stack.len() < 2 {
             return;
         }
-        // do animation shit later
+        self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
+        self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
         self.stack.pop();
     }
 
     pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
     	if let Some(guh) = self.propose.0.take() {
+            self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
+            self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
     		self.stack.push(guh);
     	}
 
-    	let pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
+        let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
+    	let pos = pos2(ui.cursor().left() + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
         
         let guh = self.stack.last_mut().unwrap();
         let _ = modal; // shut the fuck up
+        let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackSlide".into(), true, 0.7, ease_out_cubic);
+        let mut view = ui.new_child(UiBuilder::new().max_rect(ui.cursor().with_max_y(self.ctx.screen_rect().bottom()).translate(vec2(100.0 - (offset * 100.0), 0.0))));
         let title = match guh {
             FrontendMainView::Login() => {
-            	ui.label("Login placeholder");
-                //FrontendMainView::landing(self, ui);
+                FrontendMainView::landing(&mut view, modal);
                 ""
             }
-            FrontendMainView::Timeline(ref mut data) => data.render(ui, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Thread(ref mut data) => data.render(ui, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Profile(ref mut data) => data.render(ui, backend, image),
+            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image),
         };
+        
         ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
 
         if self.stack.len() > 1 {

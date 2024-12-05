@@ -5,7 +5,7 @@ use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollAr
 use crate::{
     backend::responses::timeline::{reason::BlueskyApiTimelineReason, reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject},
     bridge::Bridge,
-    frontend::{flyouts::composer::ComposerFlyout, main::ClientFrontendFlyout, viewers},
+    frontend::{flyouts::composer::ComposerFlyout, main::ClientFrontendFlyout, pages::{profile::FrontendProfileView, FrontendMainView}, viewers},
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
 };
@@ -72,18 +72,10 @@ impl FrontendTimelineView {
                         if let Some(reason) = &post.reason {
                             match reason {
                                 BlueskyApiTimelineReason::Repost(repost) => {
-                                    name.weak(format!(
-                                        "\u{E201} Reposted by {}",
-                                        if let Some(dn) = &repost.by.display_name {
-                                            if dn.len() > 0 {
-                                                dn
-                                            } else {
-                                                &repost.by.handle
-                                            }
-                                        } else {
-                                            &repost.by.handle
-                                        }
-                                    ));
+                                    name.weak("\u{E201} Reposted by ");
+                                    if name.link(egui::RichText::new(repost.by.easy_name()).color(name.visuals().weak_text_color())).clicked() {
+                                        new_view.set(FrontendMainView::Profile(FrontendProfileView::new(repost.by.did.clone())));
+                                    }
                                 }
                                 BlueskyApiTimelineReason::Pin => {
                                     name.weak("Pinned");
@@ -92,18 +84,11 @@ impl FrontendTimelineView {
                         } else if let Some(reply) = &post.reply {
                             match &reply.parent {
                                 BlueskyApiTimelineReasonReply::Post(post) => {
-                                    name.weak(format!(
-                                        "\u{E200} Replying to {}",
-                                        if let Some(name) = &post.author.display_name {
-                                            if name.len() > 0 {
-                                                name
-                                            } else {
-                                                &post.author.handle
-                                            }
-                                        } else {
-                                            &post.author.handle
-                                        }
-                                    ));
+                                    name.weak("\u{E200} Replying to ");
+                                    if name.link(egui::RichText::new(post.author.easy_name()).color(name.visuals().weak_text_color())).clicked() {
+                                        new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
+                                    }
+
                                 }
                                 BlueskyApiTimelineReasonReply::NotFound => {
                                     name.weak("\u{E200} Replying to an unknown post");

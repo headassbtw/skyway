@@ -58,12 +58,13 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
     let ffs = ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
         puffin::profile_scope!("Main Container");
         ui.style_mut().spacing.item_spacing = vec2(10.0, 10.0);
-        let (_, pfp_rect) = ui.allocate_space(vec2(60.0, 60.0));
+        let pfp_response = ui.allocate_response(vec2(60.0, 60.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+        let pfp_rect = pfp_response.rect;
         if ui.is_rect_visible(pfp_rect) {
             let tex: Option<TextureId> = if let Some(avatar) = &post.author.avatar {
                 match img_cache.get_image(avatar) {
                     LoadableImage::Unloaded | LoadableImage::Loading => None,
-                    LoadableImage::Loaded(texture_id) => Some(texture_id),
+                    LoadableImage::Loaded(texture_id, _) => Some(texture_id),
                 }
             } else {
                 None
@@ -97,7 +98,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                 } else {
                     None
                 };
-                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
+                let name_res = if display_name.is_none() {
+                    name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click()))
+                } else {
+                    name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click()))
+                }.on_hover_cursor(egui::CursorIcon::PointingHand);
 
                 let click_response = if let Some(dn) = display_name {
                     if dn.hovered() {
@@ -107,7 +112,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                     }
                 } else {
                     name_res.clicked()
-                };
+                } || pfp_response.clicked();
 
                 if click_response {
                     new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
@@ -184,7 +189,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                                             LoadableImage::Unloaded | LoadableImage::Loading => {
                                                 container.painter().rect_filled(img_rect.rect, Rounding::ZERO, Color32::GRAY);
                                             }
-                                            LoadableImage::Loaded(id) => {
+                                            LoadableImage::Loaded(id, _) => {
                                                 container.painter().image(id, img_rect.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
                                             }
                                         };
@@ -217,7 +222,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                         let tex = if let Some(thumb) = &video.thumbnail {
                             match img_cache.get_image(thumb) {
                                 LoadableImage::Unloaded | LoadableImage::Loading => None,
-                                LoadableImage::Loaded(texture_id) => Some(texture_id),
+                                LoadableImage::Loaded(texture_id, _) => Some(texture_id),
                             }
                         } else {
                             None

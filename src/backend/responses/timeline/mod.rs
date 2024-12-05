@@ -42,7 +42,7 @@ pub struct BlueskyApiTimelineResponseObject {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct BlueskyApiTimelinePostAuthor {
+pub struct BlueskyApiProfileViewBasic {
 	pub did: String,
 	pub handle: String,
 
@@ -53,11 +53,27 @@ pub struct BlueskyApiTimelinePostAuthor {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub associated: Option<serde_json::Value>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub viewer: Option<serde_json::Value>,
+	pub viewer: Option<BlueskyApiViewerState>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub labels: Option<Vec<serde_json::Value>>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub created_at: Option<DateTime<Utc>>,
+}
+
+impl BlueskyApiProfileViewBasic {
+	/// For easily getting a string that always and considely identifies the user.
+	// Shorthand for checking if the display name is empty, returning it if not, and returning the handle if so.
+	pub fn easy_name(&self) -> &str {
+		if let Some(dn) = &self.display_name {
+			if dn.len() > 0 {
+				return dn;
+			} else {
+				return &self.handle;
+			}
+		} else {
+			return &self.handle;
+		}
+	}
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -108,7 +124,7 @@ pub struct BlueskyApiTimelinePostRecord {
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
-pub struct BlueskyApiFeedViewerState {
+pub struct BlueskyApiViewerState {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub repost: Option<String>,
 	#[serde(skip_serializing_if = "Option::is_none")]
@@ -128,7 +144,7 @@ pub struct BlueskyApiFeedViewerState {
 pub struct BlueskyApiPostView {
 	pub uri: String,
 	pub cid: String,
-	pub author: BlueskyApiTimelinePostAuthor,
+	pub author: BlueskyApiProfileViewBasic,
 	pub record: BlueskyApiTimelinePostRecord,
 	pub indexed_at: DateTime<Utc>,
 
@@ -144,7 +160,7 @@ pub struct BlueskyApiPostView {
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub quote_count: Option<u32>,
 	#[serde(skip_serializing_if = "Option::is_none")]
-	pub viewer: Option<BlueskyApiFeedViewerState>,
+	pub viewer: Option<BlueskyApiViewerState>,
 	#[serde(skip_serializing_if = "Option::is_none")]
 	pub labels: Option<Vec<serde_json::Value>>,
 	#[serde(skip_serializing_if = "Option::is_none")]

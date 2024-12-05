@@ -36,7 +36,7 @@ fn render_mini_profile(ui: &mut Ui, image: &ImageCache, avatar: &Option<String>,
         let tex = if let Some(avatar) = &avatar {
             match image.get_image(&avatar) {
                 crate::image::LoadableImage::Unloaded | crate::image::LoadableImage::Loading => None,
-                crate::image::LoadableImage::Loaded(texture_id) => Some(texture_id),
+                crate::image::LoadableImage::Loaded(texture_id, _) => Some(texture_id),
             }
         } else {
             None
