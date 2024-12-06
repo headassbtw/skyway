@@ -49,6 +49,8 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
     let post_og = post.clone();
     let mut like: Option<bool> = None;
     let mut repost: Option<bool> = None;
+    let mut view_thread = false;
+    let mut view_profile = false;
     let post = {
         puffin::profile_scope!("Mutex Lock");
         &post_og.lock().unwrap()
@@ -114,9 +116,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                     name_res.clicked()
                 } || pfp_response.clicked();
 
-                if click_response {
-                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
-                }
+                if click_response { view_profile = true; }
                 
                 name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
                 name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
@@ -156,7 +156,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
 
                 let galley = post_contents.fonts(|f| f.layout_job(job));
                 if post_contents.add(egui::Label::new(galley).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone())));
+                    view_thread = true;
                 }
             }
 
@@ -299,29 +299,52 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
                     break 'render_action_buttons;
                 }
 
-                action_buttons.style_mut().spacing.item_spacing.x = 26.0;
+                action_buttons.style_mut().spacing.item_spacing.x = 26.0 * 3.0;
 
                 let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
                 action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
-                    if circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None).clicked() {
+                    let button = circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None);
+                    if button.clicked() {
                         let reply = BlueskyApiReplyRef {
                             root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
                             parent: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
                         };
                         flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                     }
+                    if let Some(reply_count) = &post.reply_count {
+                        if reply_count > &0u32 {
+                            action_buttons.painter().text(button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", reply_count), FontId::proportional(15.0), action_buttons.style().interact(&button).fg_stroke.color);
+                        }
+                    }
                 });
+                
+
                 let rt_override = if post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
-                click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override), |guh| {
+                let repost_button = circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override);
+                if let Some(repost_count) = &post.repost_count {
+                    if repost_count > &0u32 {
+                        action_buttons.painter().text(repost_button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", repost_count), FontId::proportional(15.0), if let Some(col) = rt_override { col } else { action_buttons.style().interact(&repost_button).fg_stroke.color });
+                    }
+                }
+                click_context_menu::click_context_menu(repost_button, |guh| {
                     if guh.button(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).clicked() {
                         repost = Some(rt_override.is_none());
                     }
                     if guh.add_enabled(false, egui::Button::new("Quote Repost")).clicked() {}
                 });
+                
+
                 let like_override = if post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
-                if circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override).clicked() {
+                let like_button = circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override);
+                if like_button.clicked() {
                     like = Some(like_override.is_none());
                 }
+                if let Some(like_count) = &post.like_count {
+                    if like_count > &0u32 {
+                        action_buttons.painter().text(like_button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", like_count), FontId::proportional(15.0), if let Some(col) = like_override { col } else { action_buttons.style().interact(&like_button).fg_stroke.color });
+                    }
+                }
+                
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
                     if guh.button("Open in browser").clicked() {
                         let id = post.uri.split("/").last().unwrap();
@@ -366,6 +389,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
             }
         }
     }
+
+    if view_thread  { new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone()))); }
+    if view_profile { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone()))); }
 
     ffs.response
 }

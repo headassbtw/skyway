@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use egui::{pos2, Align2, Color32, FontId, ScrollArea, Ui};
+use egui::{pos2, vec2, Align2, Color32, FontId, Response, Rounding, ScrollArea, Stroke, Ui};
 
 use crate::backend::thread::{BlueskyApiThreadResponse, BlueskyApiThreadViewPost};
 use crate::frontend::main::ClientFrontendFlyout;
@@ -25,20 +25,20 @@ impl FrontendThreadView {
 }
 
 impl FrontendThreadView {
-	fn render_recursive(ui: &mut Ui, thread: &BlueskyApiThreadResponse, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) {
+	fn render_recursive(ui: &mut Ui, thread: &BlueskyApiThreadResponse, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response{
 		match thread {
             BlueskyApiThreadResponse::NotFound(_) => {
-                ui.heading("Not Found");
+                ui.heading("Not Found")
             }
             BlueskyApiThreadResponse::Blocked(_) => {
-                ui.heading("Blocked");
+                ui.heading("Blocked")
             }
             BlueskyApiThreadResponse::ThreadView(thread) => {
             	if let Some(parent) = &thread.parent {
-            		Self::render_recursive(ui, &parent, backend, image, flyout, new_view);
+            		let res = Self::render_recursive(ui, &parent, backend, image, flyout, new_view);
+                    ui.painter().line_segment([pos2(res.rect.left() + 30.0, res.rect.top() + 70.0), pos2(res.rect.left() + 30.0, res.rect.bottom() + (ui.style().spacing.item_spacing.y * 2.0)+ 10.0)], ui.style().visuals.widgets.inactive.fg_stroke);
             	}
-                viewers::post::post_viewer(ui, thread.post.clone(), backend, image, flyout, new_view);
-            	//ui.label(format!("{}: {}", &thread.post.author.handle, &thread.post.record.text));
+                viewers::post::post_viewer(ui, thread.post.clone(), backend, image, flyout, new_view)
             }
         }
 	}
@@ -47,7 +47,27 @@ impl FrontendThreadView {
         puffin::profile_function!();
         if let Some(thread) = &self.data {
             ScrollArea::vertical().hscroll(false).show(ui, |scroll| {
-                Self::render_recursive(scroll, &thread.thread, backend, image, flyout, new_view);
+                let guh = Self::render_recursive(scroll, &thread.thread, backend, image, flyout, new_view);
+                match &thread.thread {
+                    BlueskyApiThreadResponse::NotFound(_) |
+                    BlueskyApiThreadResponse::Blocked(_) => { }
+                    BlueskyApiThreadResponse::ThreadView(thread) => {
+                        let (_, line_rect) = scroll.allocate_space(vec2(guh.rect.width(), scroll.style().visuals.widgets.inactive.fg_stroke.width * 4.0));
+                        scroll.painter().rect_filled(line_rect, Rounding::ZERO, scroll.style().visuals.widgets.inactive.fg_stroke.color);
+                        if let Some(replies) = &thread.replies {
+                            for reply in replies {
+                                match reply {
+                                    BlueskyApiThreadResponse::NotFound(_) |
+                                    BlueskyApiThreadResponse::Blocked(_) => {},
+                                    BlueskyApiThreadResponse::ThreadView(post) => {
+                                        viewers::post::post_viewer(scroll, post.post.clone(), backend, image, flyout, new_view);
+                                    },
+                                }
+                                
+                            }
+                        }
+                    }
+                }
             });
         	
         } else {

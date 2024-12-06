@@ -102,9 +102,10 @@ impl FrontendMainViewStack {
     		let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
 
     		let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-    		let col = if ui.is_enabled() { BSKY_BLUE } else { Color32::RED };
-            ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), col);
-            if back_button.clicked() {
+            ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
+            if back_button.clicked() || ui.input(|r| {
+                r.key_pressed(egui::Key::Escape)
+            }){
             	self.pop();
             }
     	}
