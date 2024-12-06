@@ -55,40 +55,46 @@ impl FrontendProfileView {
 						        },
 						    }
 						} else {
-							ui.painter().rect_filled(rect0, Rounding::ZERO, Color32::GRAY);
+							ui.painter().rect_filled(rect0, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
 						}
 
 						let upper_center = rect0.center() - vec2(0.0, rect0.height() * (0.5 / 3.0));
 						let lower_center = rect0.center() + vec2(0.0, rect0.height() * (0.5 / 3.0));
 
 						let text_size = rect0.height() * (0.25 / 4.5);
+						let text_color = if profile.banner.is_some() { Color32::WHITE } else { if ui.visuals().dark_mode { Color32::WHITE } else { ui.visuals().text_color() }};
+						
 
 						if let Some(dn) = profile.display_name() {
-							ui.painter().text(lower_center - vec2(0.0, text_size), Align2::CENTER_BOTTOM, dn, FontId::proportional(text_size), Color32::WHITE);
-							ui.painter().text(lower_center + vec2(0.0, text_size), Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), Color32::WHITE);
+							ui.painter().text(lower_center - vec2(0.0, text_size), Align2::CENTER_BOTTOM, dn, FontId::proportional(text_size), text_color);
+							ui.painter().text(lower_center + vec2(0.0, text_size), Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), text_color);
 						} else {
-							ui.painter().text(lower_center, Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), Color32::WHITE);
+							ui.painter().text(lower_center, Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), text_color);
 						}
 
+						let pfp_rect = Rect::from_center_size(upper_center, vec2(rect0.height() * 0.25, rect0.height() * 0.25));
 						if let Some(avatar) = &profile.avatar {
-							let pfp_rect = Rect::from_center_size(upper_center, vec2(rect0.height() * 0.25, rect0.height() * 0.25));
-
 							match image.get_image(avatar) {
 						        LoadableImage::Unloaded |
 						        LoadableImage::Loading => {
 						        	ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
-						        	SegoeBootSpinner::new().size(80.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
+						        	SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
 						        },
 						        LoadableImage::Loaded(texture_id, vec2) => {
 						        	ui.painter().image(texture_id, pfp_rect, Rect { min: pos2(0.0, 0.0), max: pos2(1.0, 1.0) }, Color32::WHITE);
 						        },
 						    }
+						} else {
+							ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
+							ui.painter().text(pfp_rect.center(), Align2::CENTER_CENTER, "", FontId::new(rect0.height() * 0.2, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
 						}
 
 
 						if let Some(bio) = &profile.description {
 							ui.painter().rect_filled(rect1, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
-							ui.new_child(UiBuilder::new().layout(Layout::left_to_right(egui::Align::Max)).max_rect(rect1.shrink(8.0))).label(bio);
+							let mut bio_ui = ui.new_child(UiBuilder::new().layout(Layout::left_to_right(egui::Align::Max)).max_rect(rect1.shrink(8.0)));
+							bio_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+							bio_ui.label(bio);
 						}
 					});
 					let big_text_size = panel_height / 5.0;

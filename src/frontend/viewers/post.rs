@@ -13,16 +13,16 @@ use crate::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
-        pages::{profile::FrontendProfileView, thread::FrontendThreadView, FrontendMainView, FrontendMainViewStack, MainViewProposition},
+        pages::{media::{image::FrontendMediaImageView, video::FrontendMediaVideoView, FrontendMediaViewVariant}, profile::FrontendProfileView, thread::FrontendThreadView, FrontendMainView, FrontendMainViewStack, MainViewProposition},
     },
     image::{ImageCache, LoadableImage},
-    widgets::click_context_menu,
+    widgets::{click_context_menu, spinner::SegoeBootSpinner},
 };
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
     pos2,
     text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder,
+    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder, UiStackInfo,
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -63,23 +63,22 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
         let pfp_response = ui.allocate_response(vec2(60.0, 60.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let pfp_rect = pfp_response.rect;
         if ui.is_rect_visible(pfp_rect) {
-            let tex: Option<TextureId> = if let Some(avatar) = &post.author.avatar {
+            if let Some(avatar) = &post.author.avatar {
                 match img_cache.get_image(avatar) {
-                    LoadableImage::Unloaded | LoadableImage::Loading => None,
-                    LoadableImage::Loaded(texture_id, _) => Some(texture_id),
+                    LoadableImage::Unloaded | LoadableImage::Loading => {
+                        ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
+                        SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
+                    },
+                    LoadableImage::Loaded(texture_id, _) => {
+                        ui.painter().image(texture_id, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                    },
                 }
-            } else {
-                None
-            };
-
-            if let Some(id) = tex {
-                ui.painter().image(id, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
             } else {
                 ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
                 ui.painter().text(pfp_rect.center(), Align2::CENTER_CENTER, "", FontId::new(50.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
             }
         }
-        ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
+        let tmp = ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
             let the_width_you_care_about = post_contents.cursor().width();
             post_contents.set_max_width(the_width_you_care_about);
             post_contents.allocate_new_ui(UiBuilder::new().layout(Layout::left_to_right(egui::Align::TOP)), |name| 'render_name: {
@@ -202,6 +201,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                                             let alt_guh = container.allocate_rect(dim_rect, egui::Sense::click());
                                             alt_guh.on_hover_text(&img.alt);
                                         }
+                                        if img_rect.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Image(FrontendMediaImageView::new(img.fullsize.clone()))));
+                                            println!("image clicked!");
+                                        }
                                     }
                                 });
                             });
@@ -237,6 +240,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                         post_contents.painter().rect_filled(video_rect, Rounding::ZERO, Color32::from_white_alpha(64));
                         post_contents.painter().circle_filled(video_rect.center(), 15.0, Color32::from_black_alpha(128));
                         post_contents.painter().text(video_rect.center(), Align2::CENTER_CENTER, "\u{25B6}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
+
+                        if post_contents.allocate_rect(video_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Video(FrontendMediaVideoView {  })));
+                            println!("image clicked!");
+                        }
                     }
                     BlueskyApiTimelinePostEmbedView::External { external: _ } => {
                         let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
@@ -359,6 +367,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                 });
             });
         }); //post contents container
+        tmp
     }); // main container including pfp
     ui.style_mut().spacing.item_spacing.y = 20.0;
 
@@ -390,8 +399,14 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
         }
     }
 
-    if view_thread  { new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone()))); }
+    //ui.painter().rect_filled(ffs.response.rect, Rounding::ZERO, Color32::from_rgba_premultiplied(255, 0, 0, 128));
+
+    if ffs.response.clicked() {
+        println!("guh!");
+    }
+
+    if view_thread || ffs.response.interact(egui::Sense::click()).clicked() { new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone()))); }
     if view_profile { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone()))); }
 
-    ffs.response
+    ffs.response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }

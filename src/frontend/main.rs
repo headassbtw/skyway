@@ -328,7 +328,8 @@ impl eframe::App for ClientFrontend {
                                 },
                                 FrontendMainView::Login() |
                                 FrontendMainView::Thread(_) |
-                                FrontendMainView::Profile(_) => {
+                                FrontendMainView::Profile(_) |
+                                FrontendMainView::Media(_) => {
                                     println!("fix this :)");
                                     todo!();
                                 },
@@ -366,7 +367,8 @@ impl eframe::App for ClientFrontend {
                         match page {
                             FrontendMainView::Login() |
                             FrontendMainView::Timeline(_) |
-                            FrontendMainView::Thread(_) => todo!(),
+                            FrontendMainView::Thread(_) |
+                            FrontendMainView::Media(_) => todo!(),
                             FrontendMainView::Profile(data) => {
                                 if data.id_cmp == id {
                                     if let Ok(profile) = profile {
@@ -396,7 +398,8 @@ impl eframe::App for ClientFrontend {
                         match page {
                             FrontendMainView::Login() |
                             FrontendMainView::Timeline(_) |
-                            FrontendMainView::Profile(_) => todo!(),
+                            FrontendMainView::Profile(_) |
+                            FrontendMainView::Media(_) => todo!(),
                             FrontendMainView::Thread(data) => {
                                 if data.id_cmp == uri {
                                     match res {

@@ -102,6 +102,9 @@ impl FrontendTimelineView {
                     tl.style_mut().spacing.item_spacing.y = 10.0;
                 }
                 let res = viewers::post::post_viewer(tl, post.post, false, backend, image, flyout, new_view);
+                if res.clicked() {
+                    println!("outside");
+                }
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
                 {
                     puffin::profile_scope!("Keyboard nav part B");

@@ -1,4 +1,5 @@
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, Ui, UiBuilder};
+use media::FrontendMediaViewVariant;
 use profile::FrontendProfileView;
 use thread::FrontendThreadView;
 use timeline::FrontendTimelineView;
@@ -13,12 +14,14 @@ pub mod landing;
 pub mod profile;
 pub mod thread;
 pub mod timeline;
+pub mod media;
 
 pub enum FrontendMainView {
     Login(),
     Timeline(FrontendTimelineView),
     Thread(FrontendThreadView),
     Profile(FrontendProfileView),
+    Media(FrontendMediaViewVariant),
 }
 
 pub struct FrontendMainViewStack {
@@ -94,6 +97,7 @@ impl FrontendMainViewStack {
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image),
+            FrontendMainView::Media(ref mut data) => data.render(&mut view, image),
         };
         
         ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
