@@ -44,7 +44,7 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -362,7 +362,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, backend: &
     }); // main container including pfp
     ui.style_mut().spacing.item_spacing.y = 20.0;
 
-    ui.allocate_space(vec2(0.0, 0.0)); // weird hack because spacing doesn't apply i guess?
+    //ui.allocate_space(vec2(0.0, 0.0)); // weird hack because spacing doesn't apply i guess?
 
     if let Some(repost) = repost {
         if repost {

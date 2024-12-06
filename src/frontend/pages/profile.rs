@@ -25,6 +25,7 @@ impl FrontendProfileView {
 		if let Some(profile) = &self.profile_data {
 			let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_max_y(ui.ctx().screen_rect().bottom());
 			let height = funny_rect.height() - funny_rect.top();
+			let panel_height = (height - (8.0)) * (1.0 / 3.0);
 			let mut who_gaf = ui.child_ui(funny_rect, Layout::left_to_right(egui::Align::Min), None);
 			who_gaf.style_mut().spacing.item_spacing = vec2(4.0, 4.0);
 			ScrollArea::horizontal().vscroll(false)
@@ -32,8 +33,8 @@ impl FrontendProfileView {
 			.scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
 				ui.allocate_space(vec2(0.0, funny_rect.height()));
 					ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
-						let (_, rect0) = ui.allocate_space(vec2(height * 1.5, (height - ui.style().spacing.item_spacing.y) * (2.0 / 3.0)));
-						let (_, rect1) = ui.allocate_space(vec2(height * 1.5, (height - ui.style().spacing.item_spacing.y) * (1.0 / 3.0)));
+						let (_, rect0) = ui.allocate_space(vec2(height * 1.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y));
+						let (_, rect1) = ui.allocate_space(vec2(height * 1.5, panel_height));
 
 						if let Some(pfp) = &profile.banner {
 							match image.get_image(pfp) {
@@ -60,15 +61,17 @@ impl FrontendProfileView {
 						let upper_center = rect0.center() - vec2(0.0, rect0.height() * (0.5 / 3.0));
 						let lower_center = rect0.center() + vec2(0.0, rect0.height() * (0.5 / 3.0));
 
+						let text_size = rect0.height() * (0.25 / 4.5);
+
 						if let Some(dn) = profile.display_name() {
-							ui.painter().text(lower_center - vec2(0.0, 20.0), Align2::CENTER_BOTTOM, dn, FontId::proportional(20.0), Color32::WHITE);
-							ui.painter().text(lower_center + vec2(0.0, 20.0), Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(20.0), Color32::WHITE);
+							ui.painter().text(lower_center - vec2(0.0, text_size), Align2::CENTER_BOTTOM, dn, FontId::proportional(text_size), Color32::WHITE);
+							ui.painter().text(lower_center + vec2(0.0, text_size), Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), Color32::WHITE);
 						} else {
-							ui.painter().text(lower_center, Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(20.0), Color32::WHITE);
+							ui.painter().text(lower_center, Align2::CENTER_BOTTOM, format!("@{}", profile.handle), FontId::proportional(text_size), Color32::WHITE);
 						}
 
 						if let Some(avatar) = &profile.avatar {
-							let pfp_rect = Rect::from_center_size(upper_center, vec2(100.0, 100.0));
+							let pfp_rect = Rect::from_center_size(upper_center, vec2(rect0.height() * 0.25, rect0.height() * 0.25));
 
 							match image.get_image(avatar) {
 						        LoadableImage::Unloaded |
@@ -85,9 +88,54 @@ impl FrontendProfileView {
 
 						if let Some(bio) = &profile.description {
 							ui.painter().rect_filled(rect1, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
-							ui.new_child(UiBuilder::new().max_rect(rect1.shrink(4.0))).label(bio);
+							ui.new_child(UiBuilder::new().layout(Layout::left_to_right(egui::Align::Max)).max_rect(rect1.shrink(8.0))).label(bio);
 						}
 					});
+					let big_text_size = panel_height / 5.0;
+					let small_text_size = big_text_size / 2.5;
+					
+					ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
+						if let Some(posts_count) = &profile.posts_count {
+							let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);	
+							ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+
+							ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, posts_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
+							ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Posts", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+						}
+
+						if let Some(follows_count) = &profile.follows_count {
+							let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);	
+							ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+
+							ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, follows_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
+							ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Following", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+						}
+
+						if let Some(followers_count) = &profile.followers_count {
+							let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);	
+							ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+
+							ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, followers_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
+							ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Followers", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+						}
+					});
+					ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
+						let did_lookup_button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);	
+						ui.painter().rect_filled(did_lookup_button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+
+						
+						ui.painter().text(did_lookup_button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, "\u{E11A}", FontId::new(big_text_size, egui::FontFamily::Name("Segoe Symbols".into())), ui.style().visuals.text_color());
+						ui.painter().text(did_lookup_button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Lookup DID", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+						if did_lookup_button.clicked() {
+							let url = format!("https://web.plc.directory/did/{}", &profile.did);
+
+							#[cfg(target_os = "linux")]
+	                        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+	                        #[cfg(target_os = "windows")]
+	                        let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
+						}
+					});
+					ui.allocate_space(vec2(2000.0, 0.0));
 			});
 		} else {
 			SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());

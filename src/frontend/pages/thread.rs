@@ -25,7 +25,7 @@ impl FrontendThreadView {
 }
 
 impl FrontendThreadView {
-	fn render_recursive(ui: &mut Ui, thread: &BlueskyApiThreadResponse, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response{
+	fn render_recursive(ui: &mut Ui, thread: &BlueskyApiThreadResponse, first: bool, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response{
 		match thread {
             BlueskyApiThreadResponse::NotFound(_) => {
                 ui.heading("Not Found")
@@ -35,10 +35,29 @@ impl FrontendThreadView {
             }
             BlueskyApiThreadResponse::ThreadView(thread) => {
             	if let Some(parent) = &thread.parent {
-            		let res = Self::render_recursive(ui, &parent, backend, image, flyout, new_view);
+            		let res = Self::render_recursive(ui, &parent, false, backend, image, flyout, new_view);
                     ui.painter().line_segment([pos2(res.rect.left() + 30.0, res.rect.top() + 70.0), pos2(res.rect.left() + 30.0, res.rect.bottom() + (ui.style().spacing.item_spacing.y * 2.0)+ 10.0)], ui.style().visuals.widgets.inactive.fg_stroke);
             	}
-                viewers::post::post_viewer(ui, thread.post.clone(), backend, image, flyout, new_view)
+                let rtn = viewers::post::post_viewer(ui, thread.post.clone(), false, backend, image, flyout, new_view);
+
+                if first {
+                    if let Some(replies) = &thread.replies {
+                        let (_, line_rect) = ui.allocate_space(vec2(rtn.rect.width(), ui.style().visuals.widgets.inactive.fg_stroke.width * 4.0));
+                        ui.painter().rect_filled(line_rect, Rounding::ZERO, ui.style().visuals.widgets.inactive.fg_stroke.color);
+                        for reply in replies {
+                            match reply {
+                                BlueskyApiThreadResponse::NotFound(_) |
+                                BlueskyApiThreadResponse::Blocked(_) => {},
+                                BlueskyApiThreadResponse::ThreadView(post) => {
+                                    viewers::post::post_viewer(ui, post.post.clone(), false, backend, image, flyout, new_view);
+                                },
+                            }
+                            
+                        }
+                    }
+                }
+
+                rtn
             }
         }
 	}
@@ -47,27 +66,7 @@ impl FrontendThreadView {
         puffin::profile_function!();
         if let Some(thread) = &self.data {
             ScrollArea::vertical().hscroll(false).show(ui, |scroll| {
-                let guh = Self::render_recursive(scroll, &thread.thread, backend, image, flyout, new_view);
-                match &thread.thread {
-                    BlueskyApiThreadResponse::NotFound(_) |
-                    BlueskyApiThreadResponse::Blocked(_) => { }
-                    BlueskyApiThreadResponse::ThreadView(thread) => {
-                        let (_, line_rect) = scroll.allocate_space(vec2(guh.rect.width(), scroll.style().visuals.widgets.inactive.fg_stroke.width * 4.0));
-                        scroll.painter().rect_filled(line_rect, Rounding::ZERO, scroll.style().visuals.widgets.inactive.fg_stroke.color);
-                        if let Some(replies) = &thread.replies {
-                            for reply in replies {
-                                match reply {
-                                    BlueskyApiThreadResponse::NotFound(_) |
-                                    BlueskyApiThreadResponse::Blocked(_) => {},
-                                    BlueskyApiThreadResponse::ThreadView(post) => {
-                                        viewers::post::post_viewer(scroll, post.post.clone(), backend, image, flyout, new_view);
-                                    },
-                                }
-                                
-                            }
-                        }
-                    }
-                }
+                Self::render_recursive(scroll, &thread.thread, true, backend, image, flyout, new_view);
             });
         	
         } else {

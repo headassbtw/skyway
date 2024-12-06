@@ -85,6 +85,8 @@ impl ClientFrontend {
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Light, |style| {
             style.visuals.widgets.noninteractive.fg_stroke.color = Color32::BLACK;
+            style.visuals.window_fill = Color32::from_gray(221);
+            style.visuals.panel_fill = Color32::from_gray(221);
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Dark, |style| {
             style.visuals.extreme_bg_color = Color32::from_gray(37);
