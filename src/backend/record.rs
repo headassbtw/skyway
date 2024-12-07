@@ -43,7 +43,6 @@ pub struct BlueskyApiRecordLike {
     pub created_at: DateTime<Utc>,
 }
 
-
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]

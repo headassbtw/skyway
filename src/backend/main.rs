@@ -1,24 +1,24 @@
 pub enum BlueskyLoginResponseInfo {
-	WasntLoggedIn,
-	TwoFactorTokenRequired,
+    WasntLoggedIn,
+    TwoFactorTokenRequired,
 }
 
 pub enum BlueskyLoginResponseError {
-	Generic(String),
-	Network(String),
-	InvalidRequest,
-	ExpiredToken,
-	InvalidToken,
-	AccountTakenDown,
-	AccountSuspended,
-	AccountInactive,
-	AccountDeactivated,
-	Unauthorized,
+    Generic(String),
+    Network(String),
+    InvalidRequest,
+    ExpiredToken,
+    InvalidToken,
+    AccountTakenDown,
+    AccountSuspended,
+    AccountInactive,
+    AccountDeactivated,
+    Unauthorized,
 }
 
 pub enum BlueskyLoginResponse {
-	/// DID then refresh token
-	Success(String, String),
-	Info(BlueskyLoginResponseInfo),
-	Error(BlueskyLoginResponseError),
+    /// DID then refresh token
+    Success(String, String),
+    Info(BlueskyLoginResponseInfo),
+    Error(BlueskyLoginResponseError),
 }

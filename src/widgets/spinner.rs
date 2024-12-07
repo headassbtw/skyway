@@ -41,13 +41,11 @@ impl SegoeBootSpinner {
         if ui.is_rect_visible(rect) {
             ui.ctx().request_repaint(); // because it is animated
 
-            let color = self
-                .color
-                .unwrap_or_else(|| ui.visuals().strong_text_color());
+            let color = self.color.unwrap_or_else(|| ui.visuals().strong_text_color());
             let time = (ui.input(|i| i.time) + 4.0) / 4.0;
             let time = time - time.floor();
             let interp: u32 = (time * 120.0).floor() as u32;
-            let fuck =  char::from_u32((0xE052 + interp).into()).unwrap();
+            let fuck = char::from_u32((0xE052 + interp).into()).unwrap();
             let size = self.size.unwrap_or_else(|| rect.height() * 0.8) * 0.8;
             ui.painter().text(rect.center(), Align2::CENTER_CENTER, fuck, FontId { size, family: FontFamily::Name("Segoe Boot".into()) }, color);
         }
@@ -56,9 +54,7 @@ impl SegoeBootSpinner {
 
 impl Widget for SegoeBootSpinner {
     fn ui(self, ui: &mut Ui) -> Response {
-        let size = self
-            .size
-            .unwrap_or_else(|| ui.style().spacing.interact_size.y);
+        let size = self.size.unwrap_or_else(|| ui.style().spacing.interact_size.y);
         let (rect, response) = ui.allocate_exact_size(vec2(size, size), Sense::hover());
         response.widget_info(|| WidgetInfo::new(WidgetType::ProgressIndicator));
         self.paint_at(ui, rect);

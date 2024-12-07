@@ -1,8 +1,10 @@
-pub mod frontend;
 pub mod backend;
 pub mod bridge;
-pub mod widgets;
+pub mod frontend;
 pub mod image;
+pub mod widgets;
+
+pub mod defs;
 
 use crate::frontend::main::ClientFrontend;
 
@@ -10,7 +12,7 @@ use crate::frontend::main::ClientFrontend;
 async fn main() -> eframe::Result {
     if cfg!(debug_assertions) {
         puffin::set_scopes_on(true);
-         match puffin_http::Server::new("127.0.0.1:8585") {
+        match puffin_http::Server::new("127.0.0.1:8585") {
             Ok(puffin_server) => {
                 println!("Profiling enabled on port 8585");
                 /*
@@ -29,17 +31,6 @@ async fn main() -> eframe::Result {
         };
     }
 
-    let native_options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([1280.0, 720.0])
-            .with_app_id("com.headassbtw.metro.bluesky")
-            .with_min_inner_size([640.0, 480.0])
-            ,
-        ..Default::default()
-    };
-    eframe::run_native(
-        "BLUESKY!",
-        native_options,
-        Box::new(|cc| Ok(Box::new(ClientFrontend::new(cc)))),
-    )
+    let native_options = eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 720.0]).with_app_id("com.headassbtw.metro.bluesky").with_min_inner_size([640.0, 480.0]), ..Default::default() };
+    eframe::run_native("BLUESKY!", native_options, Box::new(|cc| Ok(Box::new(ClientFrontend::new(cc)))))
 }

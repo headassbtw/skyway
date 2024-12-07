@@ -1,6 +1,11 @@
 use crate::backend::{
-    main::BlueskyLoginResponse, profile::BlueskyApiProfile, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, responses::timeline::{BlueskyApiPostView, BlueskyApiTimelineResponse, BlueskyApiTimelineResponseObject}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
+    main::BlueskyLoginResponse,
+    record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
+    responses::timeline::BlueskyApiTimelineResponse,
+    thread::BlueskyApiGetThreadResponse,
+    BlueskyApiError, ClientBackend,
 };
+use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::PostView};
 use anyhow::Result;
 use std::sync::{
     mpsc::{Receiver, Sender},
@@ -17,19 +22,19 @@ pub enum FrontToBackMsg {
     GetThreadRequest(String),
 
     CreateRecordRequest(BlueskyApiRecord),
-    CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<BlueskyApiPostView>>),
+    CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<PostView>>),
 
     DeleteRecordRequest(String, String),
-    DeleteRecordUnderPostRequest(String, String, Arc<Mutex<BlueskyApiPostView>>),
+    DeleteRecordUnderPostRequest(String, String, Arc<Mutex<PostView>>),
 }
 
 pub enum BackToFrontMsg {
-    LoginResponse(BlueskyLoginResponse, Option<BlueskyApiProfile>),
+    LoginResponse(BlueskyLoginResponse, Option<ProfileViewDetailed>),
     TimelineResponse(Result<BlueskyApiTimelineResponse, BlueskyApiError>),
     KeyringFailure(String),
     RecordCreationResponse(Result<BlueskyApiCreateRecordResponse, BlueskyApiError>),
     RecordDeletionResponse(Result<BlueskyApiDeleteRecordResponse, BlueskyApiError>),
-    ProfileResponse(String, Result<BlueskyApiProfile, BlueskyApiError>),
+    ProfileResponse(String, Result<ProfileViewDetailed, BlueskyApiError>),
     ThreadResponse(String, Result<BlueskyApiGetThreadResponse, BlueskyApiError>),
 }
 

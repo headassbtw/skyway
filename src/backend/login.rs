@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::backend::responses;
 use chrono::{DateTime, NaiveDateTime, TimeDelta, Utc};
 use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
@@ -19,6 +18,27 @@ struct JwtMidsection {
     iat: usize,
     exp: usize,
     aud: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BlueskyApiLoginResponse {
+    pub access_jwt: String,
+    pub refresh_jwt: String,
+    pub handle: String,
+    pub did: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub did_doc: Option<serde_json::Value>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_confirmed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub email_auth_factor: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub active: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
 }
 
 impl ClientBackend {
@@ -49,7 +69,7 @@ impl ClientBackend {
             StatusCode::OK => {
                 let jason_bytes = if let Ok(res) = res.bytes().await { res } else { return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic("Failed to read response".into())) };
                 let jason: &str = if let Ok(res) = std::str::from_utf8(&jason_bytes) { res } else { return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic("Failed to decode response".into())) };
-                let response: responses::BlueskyApiLoginResponse = serde_json::from_str(jason).unwrap();
+                let response: BlueskyApiLoginResponse = serde_json::from_str(jason).unwrap();
                 self.did = response.did;
                 self.access_token = response.access_jwt;
 

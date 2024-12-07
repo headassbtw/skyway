@@ -2,11 +2,9 @@ use chrono::Utc;
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui};
 
 use crate::{
-    backend::{
-        profile::BlueskyApiProfile,
-        record::{BlueskyApiRecord, BlueskyApiRecordPost, BlueskyApiReplyRef},
-    },
+    backend::record::{BlueskyApiRecord, BlueskyApiRecordPost, BlueskyApiReplyRef},
     bridge::Bridge,
+    defs::bsky::actor::defs::ProfileViewDetailed,
     frontend::{circle_button, main::ClientFrontendFlyoutVariant},
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
@@ -64,7 +62,7 @@ fn render_mini_profile(ui: &mut Ui, image: &ImageCache, avatar: &Option<String>,
 }
 
 impl ClientFrontendFlyoutVariant {
-    pub fn post_composer(ui: &mut Ui, data: &mut ComposerFlyout, profile: &Option<BlueskyApiProfile>, img_cache: &ImageCache, backend: &Bridge) {
+    pub fn post_composer(ui: &mut Ui, data: &mut ComposerFlyout, profile: &Option<ProfileViewDetailed>, img_cache: &ImageCache, backend: &Bridge) {
         let center = ui.cursor().center();
         ui.add_enabled_ui(!data.sending, |ui| {
             let right_limit = ui.cursor().right();

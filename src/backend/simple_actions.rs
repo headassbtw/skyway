@@ -1,9 +1,5 @@
 use super::ClientBackend;
 
-
-
 impl ClientBackend {
-	pub fn like_post() {
-
-	}
+    pub fn like_post() {}
 }

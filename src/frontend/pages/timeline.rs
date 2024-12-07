@@ -1,11 +1,14 @@
-use std::sync::{Arc, Mutex};
-
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
+use egui::{vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
 
 use crate::{
-    backend::responses::timeline::{reason::BlueskyApiTimelineReason, reply::BlueskyApiTimelineReasonReply, BlueskyApiTimelineResponseObject},
     bridge::Bridge,
-    frontend::{flyouts::composer::ComposerFlyout, main::ClientFrontendFlyout, pages::{profile::FrontendProfileView, FrontendMainView}, viewers},
+    defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant},
+    frontend::{
+        flyouts::composer::ComposerFlyout,
+        main::ClientFrontendFlyout,
+        pages::{profile::FrontendProfileView, FrontendMainView},
+        viewers,
+    },
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
 };
@@ -15,7 +18,7 @@ use super::MainViewProposition;
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub struct FrontendTimelineView {
-    pub timeline: Vec<BlueskyApiTimelineResponseObject>,
+    pub timeline: Vec<FeedViewPost>,
     pub timeline_cursor: Option<String>,
     pub post_highlight: (usize, f32, bool),
 }
@@ -62,7 +65,7 @@ impl FrontendTimelineView {
             };
             for i in 0..length {
                 puffin::profile_scope!("Post");
-                let post = self.timeline[i].clone();
+                let post = &self.timeline[i];
                 if post.reason.is_some() || post.reply.is_some() {
                     puffin::profile_scope!("Reason");
                     tl.style_mut().spacing.item_spacing = vec2(10.0, 2.0);
@@ -71,29 +74,28 @@ impl FrontendTimelineView {
                         name.style_mut().spacing.item_spacing.x = 0.0;
                         if let Some(reason) = &post.reason {
                             match reason {
-                                BlueskyApiTimelineReason::Repost(repost) => {
+                                Reason::Repost(repost) => {
                                     name.weak("\u{E201} Reposted by ");
                                     if name.link(egui::RichText::new(repost.by.easy_name()).color(name.visuals().weak_text_color())).clicked() {
                                         new_view.set(FrontendMainView::Profile(FrontendProfileView::new(repost.by.did.clone())));
                                     }
                                 }
-                                BlueskyApiTimelineReason::Pin => {
+                                Reason::Pin => {
                                     name.weak("Pinned");
                                 }
                             }
                         } else if let Some(reply) = &post.reply {
                             match &reply.parent {
-                                BlueskyApiTimelineReasonReply::Post(post) => {
+                                RelatedPostVariant::Post(post) => {
                                     name.weak("\u{E200} Replying to ");
                                     if name.link(egui::RichText::new(post.author.easy_name()).color(name.visuals().weak_text_color())).clicked() {
                                         new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
                                     }
-
                                 }
-                                BlueskyApiTimelineReasonReply::NotFound => {
+                                RelatedPostVariant::NotFound(_) => {
                                     name.weak("\u{E200} Replying to an unknown post");
                                 }
-                                BlueskyApiTimelineReasonReply::Blocked => {
+                                RelatedPostVariant::Blocked(_) => {
                                     name.weak("\u{E200} Replying to a blocked post");
                                 }
                             }
@@ -101,7 +103,7 @@ impl FrontendTimelineView {
                     });
                     tl.style_mut().spacing.item_spacing.y = 10.0;
                 }
-                let res = viewers::post::post_viewer(tl, post.post, false, backend, image, flyout, new_view);
+                let res = viewers::post::post_viewer(tl, post.post.clone(), false, backend, image, flyout, new_view);
                 if res.clicked() {
                     println!("outside");
                 }

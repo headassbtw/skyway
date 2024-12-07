@@ -1,17 +1,24 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::{collections::BTreeMap, sync::{Arc, Mutex}};
+use std::collections::BTreeMap;
 
 use crate::{
     backend::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
-        profile::BlueskyApiProfile,
         BlueskyApiError,
-    }, bridge::Bridge, frontend::pages::thread, image::ImageCache, widgets::spinner::SegoeBootSpinner
+    },
+    bridge::Bridge,
+    defs::bsky::actor::defs::ProfileViewDetailed,
+    image::ImageCache,
+    widgets::spinner::SegoeBootSpinner,
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
-use super::{flyouts::composer::ComposerFlyout, modals::important_error::ImportantErrorModal, pages::{timeline::FrontendTimelineView, FrontendMainView, FrontendMainViewStack}};
+use super::{
+    flyouts::composer::ComposerFlyout,
+    modals::important_error::ImportantErrorModal,
+    pages::{timeline::FrontendTimelineView, FrontendMainView, FrontendMainViewStack},
+};
 #[derive(serde::Deserialize, serde::Serialize)]
 pub enum ClientFrontendPage {
     LandingPage,
@@ -62,7 +69,7 @@ pub struct ClientFrontend {
     pub show_egui_settings: bool,
     pub active: bool,
     pub authenticated: bool,
-    pub profile: Option<BlueskyApiProfile>,
+    pub profile: Option<ProfileViewDetailed>,
 
     pub view_stack: FrontendMainViewStack,
 }
@@ -234,26 +241,27 @@ impl ClientFrontendFlyout {
     /// ALSO RUNS ANIMAITON LOGIC!
     /// paramds: should render, should let underneath interact, state
     pub fn get_animation_state(&mut self) -> (bool, bool, f32) {
-        if self.main.is_none() {return (false, true, 0.0); }
+        if self.main.is_none() {
+            return (false, true, 0.0);
+        }
         let state = self.ctx.animate_bool_with_time_and_easing(Id::new("flyout shift"), self.main.is_some() && !self.closing, 1.2, ease_out_expo);
-        if state == 0.0 && self.closing{
+        if state == 0.0 && self.closing {
             self.main = None;
             self.closing = false;
         }
         return (true, state < 0.2, state);
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, profile: &Option<BlueskyApiProfile>, backend: &Bridge, image: &ImageCache) -> &str {
+    pub fn render(&mut self, ui: &mut egui::Ui, profile: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache) -> &str {
         if let Some(flyout) = &mut self.main {
             match flyout {
                 ClientFrontendFlyoutVariant::PostComposerFlyout(data) => {
                     ClientFrontendFlyoutVariant::post_composer(ui, data, profile, image, backend);
                     if data.reply.is_some() {
-                        return "Reply"
+                        return "Reply";
                     }
-                    return "New Post"
-
-                },
+                    return "New Post";
+                }
             }
         }
         "Unhandled Flyout"
@@ -271,7 +279,7 @@ impl ClientFrontendModal {
     }
 
     pub fn get_animation_state(&self) -> (bool, f32) {
-        let state = self.ctx.animate_bool_with_time_and_easing(Id::new("modal shift"), self.main.is_some(), 1.2, ease_out_expo); 
+        let state = self.ctx.animate_bool_with_time_and_easing(Id::new("modal shift"), self.main.is_some(), 1.2, ease_out_expo);
         return (state < 0.2, state);
     }
 }
@@ -334,14 +342,11 @@ impl eframe::App for ClientFrontend {
                                     for post in tl.feed {
                                         data.timeline.push(post);
                                     }
-                                },
-                                FrontendMainView::Login() |
-                                FrontendMainView::Thread(_) |
-                                FrontendMainView::Profile(_) |
-                                FrontendMainView::Media(_) => {
+                                }
+                                FrontendMainView::Login() | FrontendMainView::Thread(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => {
                                     println!("fix this :)");
                                     todo!();
-                                },
+                                }
                             }
                         }
                     }
@@ -369,15 +374,14 @@ impl eframe::App for ClientFrontend {
                             BlueskyApiError::ParseError(error) => format!("Parse Error: {}", error),
                         };
                         self.info_modal("Failed to delete record", &s);
-                    },
+                    }
                 },
                 crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
                     if let Some(page) = self.view_stack.top() {
                         match page {
-                            FrontendMainView::Login() |
-                            FrontendMainView::Timeline(_) |
-                            FrontendMainView::Thread(_) |
-                            FrontendMainView::Media(_) => { println!("bridge target missed"); },
+                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Thread(_) | FrontendMainView::Media(_) => {
+                                println!("bridge target missed");
+                            }
                             FrontendMainView::Profile(data) => {
                                 if data.id_cmp == id {
                                     if let Ok(profile) = profile {
@@ -387,10 +391,10 @@ impl eframe::App for ClientFrontend {
                                         self.info_modal("Failed to get profile", &format!("{:?}", err));
                                     }
                                 }
-                            },
+                            }
                         }
                     }
-                },
+                }
                 crate::bridge::BackToFrontMsg::RecordDeletionResponse(data) => {
                     if let Err(err) = data {
                         let s = match err {
@@ -401,31 +405,27 @@ impl eframe::App for ClientFrontend {
                         };
                         self.info_modal("Failed to delete record", &s);
                     }
-                },
+                }
                 crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
                     if let Some(page) = self.view_stack.top() {
                         match page {
-                            FrontendMainView::Login() |
-                            FrontendMainView::Timeline(_) |
-                            FrontendMainView::Profile(_) |
-                            FrontendMainView::Media(_) => todo!(),
+                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => todo!(),
                             FrontendMainView::Thread(data) => {
                                 if data.id_cmp == uri {
                                     match res {
                                         Ok(thread) => {
-                                            data.data = Some(thread);
+                                            data.data = Some(crate::defs::bsky::feed::defs::ThreadPostVariant::ThreadView(thread.thread));
                                             data.loading = false;
-                                        },
+                                        }
                                         Err(err) => {
                                             self.info_modal("Failed to get thread", &format!("{:?}", err));
-                                        },
+                                        }
                                     }
                                 }
-                            },
+                            }
                         }
                     }
-                    
-                },
+                }
             }
         }
 
@@ -484,7 +484,7 @@ impl eframe::App for ClientFrontend {
             if self.active {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
                     self.view_stack.render(contents, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
-                    
+
                     /*match self.page {
                         ClientFrontendPage::LandingPage => self.landing_page(contents),
                         ClientFrontendPage::TimelinePage => self.timeline_page(contents),
@@ -537,7 +537,7 @@ impl eframe::App for ClientFrontend {
                     let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click());
                     ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
 
-                    if back_button.clicked() || ctx.input(|state| { state.key_pressed(egui::Key::Escape) }) {
+                    if back_button.clicked() || ctx.input(|state| state.key_pressed(egui::Key::Escape)) {
                         self.flyout.close();
                     }
 
@@ -554,9 +554,6 @@ impl eframe::App for ClientFrontend {
                         let title = self.flyout.render(flyout_contents, &self.profile, &self.backend, &self.image);
                         flyout_contents.painter().text(back_button_rect.right_bottom() + vec2(20.0, 0.0), Align2::LEFT_BOTTOM, title, FontId::new(30.0, egui::FontFamily::Name("Segoe Light".into())), Color32::WHITE);
                     });
-                    
-
-                    
                 });
             }
 

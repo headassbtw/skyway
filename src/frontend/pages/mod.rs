@@ -1,4 +1,4 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, Ui, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, Rect, Ui, UiBuilder};
 use media::FrontendMediaViewVariant;
 use profile::FrontendProfileView;
 use thread::FrontendThreadView;
@@ -11,10 +11,10 @@ use super::main::{ClientFrontendFlyout, ClientFrontendModal};
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub mod landing;
+pub mod media;
 pub mod profile;
 pub mod thread;
 pub mod timeline;
-pub mod media;
 
 pub enum FrontendMainView {
     Login(),
@@ -30,16 +30,16 @@ pub struct FrontendMainViewStack {
     propose: MainViewProposition, // add animaiton state and whatnot
 }
 
-pub struct MainViewProposition(Option<FrontendMainView>, egui::Context);
+pub struct MainViewProposition(Option<FrontendMainView>);
 
 impl MainViewProposition {
-	pub fn set(&mut self,to: FrontendMainView) {
-		self.0 = Some(to);
-	}
+    pub fn set(&mut self, to: FrontendMainView) {
+        self.0 = Some(to);
+    }
 
-	pub fn new(ctx: egui::Context) -> Self {
-		Self(None, ctx)
-	}
+    pub fn new() -> Self {
+        Self(None)
+    }
 }
 
 fn ease_out_cubic(x: f32) -> f32 {
@@ -55,12 +55,12 @@ impl FrontendMainViewStack {
                 stack.push(initial);
                 stack
             },
-            propose: MainViewProposition::new(ctx),
+            propose: MainViewProposition::new(),
         }
     }
 
     pub fn set(&mut self, to: FrontendMainView) {
-    	// fuck with propose later but for now just do this lmao
+        // fuck with propose later but for now just do this lmao
         //self.propose = Some(to);
         self.stack.clear();
         self.stack.push(to);
@@ -76,15 +76,15 @@ impl FrontendMainViewStack {
     }
 
     pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
-    	if let Some(guh) = self.propose.0.take() {
+        if let Some(guh) = self.propose.0.take() {
             self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
             self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
-    		self.stack.push(guh);
-    	}
+            self.stack.push(guh);
+        }
 
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
-    	let pos = pos2(ui.cursor().left() + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
-        
+        let pos = pos2(ui.cursor().left() + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
+
         let guh = self.stack.last_mut().unwrap();
         let _ = modal; // shut the fuck up
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackSlide".into(), true, 0.7, ease_out_cubic);
@@ -99,20 +99,18 @@ impl FrontendMainViewStack {
             FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image),
             FrontendMainView::Media(ref mut data) => data.render(&mut view, image),
         };
-        
+
         ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
 
         if self.stack.len() > 1 {
-    		let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
+            let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
 
-    		let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+            let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
             ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-            if back_button.clicked() || ui.input(|r| {
-                r.key_pressed(egui::Key::Escape)
-            }){
-            	self.pop();
+            if back_button.clicked() || ui.input(|r| r.key_pressed(egui::Key::Escape)) {
+                self.pop();
             }
-    	}
+        }
     }
 
     /// TO BE REMOVED, stopgap before i remove the callback architecture

@@ -1,28 +1,29 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    backend::{
-        record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef},
-        responses::timeline::{
-            embed::{BlueskyApiTimelineEmbedRecordView, BlueskyApiTimelinePostEmbedView}, BlueskyApiPostView, BlueskyApiTimelineResponseObject
-
-        },
-    },
+    backend::record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef},
     bridge::Bridge,
+    defs::bsky::{embed, feed::defs::PostView},
     frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
-        pages::{media::{image::FrontendMediaImageView, video::FrontendMediaVideoView, FrontendMediaViewVariant}, profile::FrontendProfileView, thread::FrontendThreadView, FrontendMainView, FrontendMainViewStack, MainViewProposition},
+        pages::{
+            media::{image::FrontendMediaImageView, video::FrontendMediaVideoView, FrontendMediaViewVariant},
+            profile::FrontendProfileView,
+            thread::FrontendThreadView,
+            FrontendMainView, MainViewProposition,
+        },
     },
     image::{ImageCache, LoadableImage},
     widgets::{click_context_menu, spinner::SegoeBootSpinner},
 };
+
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
     pos2,
     text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, TextureId, Ui, UiBuilder, UiStackInfo,
+    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder,
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -44,7 +45,7 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -68,10 +69,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                     LoadableImage::Unloaded | LoadableImage::Loading => {
                         ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
                         SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
-                    },
+                    }
                     LoadableImage::Loaded(texture_id, _) => {
                         ui.painter().image(texture_id, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                    },
+                    }
                 }
             } else {
                 ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
@@ -99,11 +100,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                 } else {
                     None
                 };
-                let name_res = if display_name.is_none() {
-                    name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click()))
-                } else {
-                    name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click()))
-                }.on_hover_cursor(egui::CursorIcon::PointingHand);
+                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
 
                 let click_response = if let Some(dn) = display_name {
                     if dn.hovered() {
@@ -115,8 +112,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                     name_res.clicked()
                 } || pfp_response.clicked();
 
-                if click_response { view_profile = true; }
-                
+                if click_response {
+                    view_profile = true;
+                }
+
                 name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
                 name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
             });
@@ -166,7 +165,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
             if let Some(embed) = &post.embed {
                 puffin::profile_scope!("Embed");
                 match embed {
-                    BlueskyApiTimelinePostEmbedView::Images { images } => 'render_images: {
+                    embed::Variant::Images { images } => 'render_images: {
                         puffin::profile_scope!("Images");
                         let img_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + MEDIA_SIZE);
                         if !post_contents.is_rect_visible(img_rect) {
@@ -210,7 +209,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                             });
                         });
                     }
-                    BlueskyApiTimelinePostEmbedView::Video(video) => 'render_video: {
+                    embed::Variant::Video(video) => 'render_video: {
                         puffin::profile_scope!("Video");
                         let video_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + MEDIA_SIZE);
                         if !post_contents.is_rect_visible(video_rect) {
@@ -242,11 +241,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                         post_contents.painter().text(video_rect.center(), Align2::CENTER_CENTER, "\u{25B6}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
 
                         if post_contents.allocate_rect(video_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Video(FrontendMediaVideoView {  })));
+                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Video(FrontendMediaVideoView {})));
                             println!("image clicked!");
                         }
                     }
-                    BlueskyApiTimelinePostEmbedView::External { external: _ } => {
+                    embed::Variant::External { external: _ } => {
                         let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
                             quote.with_layout(Layout::left_to_right(egui::Align::Min), |name| {
                                 name.weak("External Link/Embed");
@@ -255,33 +254,33 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
 
                         post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.style().visuals.text_color()));
                     }
-                    BlueskyApiTimelinePostEmbedView::Record { record } => {
+                    embed::Variant::Record { record } => {
                         puffin::profile_scope!("Record");
                         let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
                             quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
                                 embed.horizontal_wrapped(|embed| match record {
-                                    BlueskyApiTimelineEmbedRecordView::Record(value) => {
+                                    embed::record::View::Record(_) => {
                                         embed.weak("Record");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::NotFound(_) => {
+                                    embed::record::View::NotFound(_) => {
                                         embed.weak("Not Found");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::Blocked(_) => {
+                                    embed::record::View::Blocked(_) => {
                                         embed.weak("Blocked");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::Detached(_) => {
+                                    embed::record::View::Detached(_) => {
                                         embed.weak("Detached Record");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::FeedGenerator(_) => {
+                                    embed::record::View::FeedGenerator(_) => {
                                         embed.weak("Feed Generator");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::List(_) => {
+                                    embed::record::View::List(_) => {
                                         embed.weak("List");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::Labeler(_) => {
+                                    embed::record::View::Labeler(_) => {
                                         embed.weak("Labeler");
                                     }
-                                    BlueskyApiTimelineEmbedRecordView::PackView(_) => {
+                                    embed::record::View::PackView(_) => {
                                         embed.weak("PackView");
                                     }
                                 });
@@ -325,7 +324,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                         }
                     }
                 });
-                
 
                 let rt_override = if post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
                 let repost_button = circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override);
@@ -340,7 +338,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                     }
                     if guh.add_enabled(false, egui::Button::new("Quote Repost")).clicked() {}
                 });
-                
 
                 let like_override = if post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
                 let like_button = circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override);
@@ -352,7 +349,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                         action_buttons.painter().text(like_button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", like_count), FontId::proportional(15.0), if let Some(col) = like_override { col } else { action_buttons.style().interact(&like_button).fg_stroke.color });
                     }
                 }
-                
+
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
                     if guh.button("Open in browser").clicked() {
                         let id = post.uri.split("/").last().unwrap();
@@ -405,8 +402,12 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
         println!("guh!");
     }
 
-    if view_thread || ffs.response.interact(egui::Sense::click()).clicked() { new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone()))); }
-    if view_profile { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone()))); }
+    if view_thread || ffs.response.interact(egui::Sense::click()).clicked() {
+        new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone())));
+    }
+    if view_profile {
+        new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
+    }
 
     ffs.response.on_hover_cursor(egui::CursorIcon::PointingHand)
 }

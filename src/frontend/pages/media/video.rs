@@ -1,3 +1,1 @@
-pub struct FrontendMediaVideoView {
-	
-}
+pub struct FrontendMediaVideoView {}
