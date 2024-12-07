@@ -377,7 +377,7 @@ impl eframe::App for ClientFrontend {
                             FrontendMainView::Login() |
                             FrontendMainView::Timeline(_) |
                             FrontendMainView::Thread(_) |
-                            FrontendMainView::Media(_) => todo!(),
+                            FrontendMainView::Media(_) => { println!("bridge target missed"); },
                             FrontendMainView::Profile(data) => {
                                 if data.id_cmp == id {
                                     if let Ok(profile) = profile {

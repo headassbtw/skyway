@@ -1,5 +1,8 @@
+use chrono::{DateTime, Utc};
 use serde_json;
 use serde::{self, Serialize, Deserialize};
+
+use super::BlueskyApiProfileViewBasic;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -62,7 +65,6 @@ pub enum BlueskyApiTimelineEmbedRecordView {
     Labeler(serde_json::Value),
     #[serde(rename = "app.bsky.graph.defs#starterPackViewBasic")]
     PackView(serde_json::Value),
-
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]

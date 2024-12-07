@@ -23,16 +23,16 @@ impl FrontendProfileView {
 	pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache) -> &str {
 		puffin::profile_function!();
 		if let Some(profile) = &self.profile_data {
-			let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_max_y(ui.ctx().screen_rect().bottom());
+			let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_min_x(ui.ctx().screen_rect().left()).with_max_y(ui.ctx().screen_rect().bottom());
 			let height = funny_rect.height() - funny_rect.top();
 			let panel_height = (height - (8.0)) * (1.0 / 3.0);
+			let offset_left = ui.cursor().left() - 4.0;
 			let mut who_gaf = ui.child_ui(funny_rect, Layout::left_to_right(egui::Align::Min), None);
 			who_gaf.style_mut().spacing.item_spacing = vec2(4.0, 4.0);
 			ScrollArea::horizontal().vscroll(false)
 			.max_width(funny_rect.width()).max_height(funny_rect.height())
 			.scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
-				ui.set_clip_rect(ui.ctx().screen_rect()); //TODO: properly
-				ui.allocate_space(vec2(0.0, funny_rect.height()));
+				ui.allocate_space(vec2(offset_left, funny_rect.height()));
 					ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
 						let (_, rect0) = ui.allocate_space(vec2(height * 1.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y));
 						let (_, rect1) = ui.allocate_space(vec2(height * 1.5, panel_height));

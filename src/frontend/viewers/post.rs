@@ -258,31 +258,31 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<BlueskyApiPostView>>, main: bool
                     BlueskyApiTimelinePostEmbedView::Record { record } => {
                         puffin::profile_scope!("Record");
                         let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
-                            quote.with_layout(Layout::left_to_right(egui::Align::Min), |name| {
-                                name.horizontal_wrapped(|name| match record {
+                            quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
+                                embed.horizontal_wrapped(|embed| match record {
                                     BlueskyApiTimelineEmbedRecordView::Record(value) => {
-                                        name.weak(format!("{:?}", value));
+                                        embed.weak("Record");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::NotFound(_) => {
-                                        name.weak("Not Found");
+                                        embed.weak("Not Found");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::Blocked(_) => {
-                                        name.weak("Blocked");
+                                        embed.weak("Blocked");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::Detached(_) => {
-                                        name.weak("Detached Record");
+                                        embed.weak("Detached Record");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::FeedGenerator(_) => {
-                                        name.weak("Feed Generator");
+                                        embed.weak("Feed Generator");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::List(_) => {
-                                        name.weak("List");
+                                        embed.weak("List");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::Labeler(_) => {
-                                        name.weak("Labeler");
+                                        embed.weak("Labeler");
                                     }
                                     BlueskyApiTimelineEmbedRecordView::PackView(_) => {
-                                        name.weak("PackView");
+                                        embed.weak("PackView");
                                     }
                                 });
                             });
