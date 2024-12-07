@@ -31,6 +31,7 @@ impl FrontendProfileView {
 			ScrollArea::horizontal().vscroll(false)
 			.max_width(funny_rect.width()).max_height(funny_rect.height())
 			.scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
+				ui.set_clip_rect(ui.ctx().screen_rect()); //TODO: properly
 				ui.allocate_space(vec2(0.0, funny_rect.height()));
 					ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
 						let (_, rect0) = ui.allocate_space(vec2(height * 1.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y));
@@ -80,7 +81,7 @@ impl FrontendProfileView {
 						        	ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
 						        	SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
 						        },
-						        LoadableImage::Loaded(texture_id, vec2) => {
+						        LoadableImage::Loaded(texture_id, _) => {
 						        	ui.painter().image(texture_id, pfp_rect, Rect { min: pos2(0.0, 0.0), max: pos2(1.0, 1.0) }, Color32::WHITE);
 						        },
 						    }

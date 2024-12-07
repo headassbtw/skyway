@@ -13,5 +13,6 @@ You will need to provide the Microsoft fonts from your own Windows 8 or newer in
 - **Segoe Symbols**: `C:/Windows/Fonts/seguisym.ttf`
 - **Segoe Emojis**: `C:/Windows/Fonts/seguiemj.ttf`
 - **Segoe Boot**: `C:/Windows/Boot/Fonts/segoe_slboot.ttf`
+- **Malgun Gothic**: `C:/Windows/Fonts/malgun.ttf`
 Along with a Japanese font of your choice, I'm using Droid Sans because I know about it
 - **Droid Sans Japanese**: `DroidSansJapanese.ttf`

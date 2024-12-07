@@ -70,6 +70,9 @@ pub struct ClientFrontend {
 impl ClientFrontend {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         //egui_extras::install_image_loaders(&cc.egui_ctx);
+        cc.egui_ctx.options_mut(|opt| {
+            opt.line_scroll_speed = 80.0;
+        });
         cc.egui_ctx.all_styles_mut(|style| {
             // Global styles
             let text_styles: BTreeMap<_, _> = [(TextStyle::Heading, FontId::new(30.0, FontFamily::Proportional)), (TextStyle::Name("MetroHeading".into()), FontId::new(40.0, FontFamily::Name("Segoe Light".into()))), (TextStyle::Body, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Monospace, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Button, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Small, FontId::new(7.0, FontFamily::Proportional))].into();
@@ -130,6 +133,11 @@ impl ClientFrontend {
             font.tweak.y_offset_factor = 0.075;
             font
         });
+        fonts.font_data.insert("Malgun".to_owned(), {
+            let mut font = egui::FontData::from_static(include_bytes!("../../malgun.ttf"));
+            font.tweak.y_offset_factor = 0.075;
+            font
+        });
 
         fonts.font_data.insert("Segoe Boot".to_owned(), egui::FontData::from_static(include_bytes!("../../segoe_slboot.ttf")));
         fonts.font_data.insert("Segoe Symbols".to_owned(), egui::FontData::from_static(include_bytes!("../../seguisym.ttf")));
@@ -140,8 +148,9 @@ impl ClientFrontend {
 
         fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(0, "Segoe UI".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(1, "Droid Sans JPN".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(2, "Segoe Emojis".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(3, "Segoe Symbols".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(2, "Malgun".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(3, "Segoe Emojis".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(4, "Segoe Symbols".to_owned());
 
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(1, "Droid Sans JPN".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(2, "Segoe Emojis".to_owned());
