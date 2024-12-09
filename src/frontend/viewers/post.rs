@@ -61,7 +61,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
         if ui.is_rect_visible(pfp_rect) {
             if let Some(avatar) = &post.author.avatar {
                 match img_cache.get_image(avatar) {
-                    LoadableImage::Unloaded | LoadableImage::Loading => {
+                    LoadableImage::Unloaded => {
+                        ui.painter().rect_filled(pfp_rect, Rounding::ZERO, Color32::RED);
+                        SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
+                    }
+                    LoadableImage::Loading => {
                         ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
                         SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
                     }

@@ -4,6 +4,7 @@ pub mod frontend;
 pub mod image;
 pub mod widgets;
 pub mod defs;
+pub mod settings;
 
 use crate::frontend::main::ClientFrontend;
 

@@ -30,7 +30,7 @@ pub struct FrontendMainViewStack {
     propose: MainViewProposition, // add animaiton state and whatnot
 }
 
-pub struct MainViewProposition(Option<FrontendMainView>);
+pub struct MainViewProposition(Option<FrontendMainView>, bool);
 
 impl MainViewProposition {
     pub fn set(&mut self, to: FrontendMainView) {
@@ -38,7 +38,7 @@ impl MainViewProposition {
     }
 
     pub fn new() -> Self {
-        Self(None)
+        Self(None, false)
     }
 }
 
@@ -80,6 +80,9 @@ impl FrontendMainViewStack {
             self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
             self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
             self.stack.push(guh);
+        } else if self.propose.1 {
+            self.pop();
+            self.propose.1 = false;
         }
 
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
@@ -89,16 +92,18 @@ impl FrontendMainViewStack {
         let _ = modal; // shut the fuck up
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackSlide".into(), true, 0.7, ease_out_cubic);
         let mut view = ui.new_child(UiBuilder::new().max_rect(ui.cursor().with_max_y(self.ctx.screen_rect().bottom()).translate(vec2(100.0 - (offset * 100.0), 0.0))));
-        let title = match guh {
+        let (title, render_header) = match guh {
             FrontendMainView::Login() => {
                 FrontendMainView::landing(&mut view, modal);
-                ""
+                ("", false)
             }
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image),
-            FrontendMainView::Media(ref mut data) => data.render(&mut view, image),
+            FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),
         };
+        
+        if !render_header { return; }
 
         ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
 

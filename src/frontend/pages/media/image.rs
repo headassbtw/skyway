@@ -16,7 +16,7 @@ impl FrontendMediaImageView {
     }
 
     pub fn render(&mut self, ui: &mut egui::Ui, image: &ImageCache) {
-        let fuck = ui.cursor().with_max_y(ui.ctx().screen_rect().bottom());
+        let fuck = ui.ctx().screen_rect();
         match image.get_image(&self.uri) {
             LoadableImage::Unloaded | LoadableImage::Loading => {
                 SegoeBootSpinner::new().color(BSKY_BLUE).size(200.0).paint_at(ui, fuck);

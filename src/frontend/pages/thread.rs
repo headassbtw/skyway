@@ -53,7 +53,7 @@ impl FrontendThreadView {
         }
     }
 
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> &str {
+    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
         if let Some(thread) = &self.data {
             ScrollArea::vertical().hscroll(false).show(ui, |scroll| {
@@ -67,6 +67,6 @@ impl FrontendThreadView {
             }
         }
 
-        "Thread"
+        ("Thread", true)
     }
 }

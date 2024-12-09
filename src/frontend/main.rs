@@ -1,15 +1,11 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 
 use crate::{
     backend::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
         BlueskyApiError,
-    },
-    bridge::Bridge,
-    defs::bsky::actor::defs::ProfileViewDetailed,
-    image::ImageCache,
-    widgets::spinner::SegoeBootSpinner,
+    }, bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, settings::Settings, widgets::spinner::SegoeBootSpinner
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -72,6 +68,8 @@ pub struct ClientFrontend {
     pub profile: Option<ProfileViewDetailed>,
 
     pub view_stack: FrontendMainViewStack,
+
+    pub settings: Arc<Mutex<Settings>>,
 }
 
 impl ClientFrontend {
@@ -165,21 +163,26 @@ impl ClientFrontend {
 
         cc.egui_ctx.set_fonts(fonts);
 
-        /*if let Some(storage) = cc.storage {
-            return eframe::get_value(storage, eframe::APP_KEY).unwrap_or_default();
-        }*/
+        let settings: Settings = if let Some(storage) = cc.storage {
+            eframe::get_value(storage, "Settings").unwrap_or_default()
+        } else {
+            Settings::default()
+        };
+        let settings = Arc::new(Mutex::new(settings));
+
         Self {
             ctx: cc.egui_ctx.clone(),
             modal: ClientFrontendModal { ctx: cc.egui_ctx.clone(), main: None },
             flyout: ClientFrontendFlyout { ctx: cc.egui_ctx.clone(), main: None, closing: false },
-            backend: Bridge::new(cc.egui_ctx.clone()),
-            image: ImageCache::new(cc.egui_ctx.clone()),
+            backend: Bridge::new(cc.egui_ctx.clone(), settings.clone()),
+            image: ImageCache::new(cc.egui_ctx.clone(), settings.clone()),
             draw_grid: false,
             show_egui_settings: false,
             active: false,
             authenticated: false,
             profile: None,
             view_stack: FrontendMainViewStack::new(cc.egui_ctx.clone(), FrontendMainView::Login()),
+            settings
         }
     }
 }
@@ -285,8 +288,9 @@ impl ClientFrontendModal {
 }
 
 impl eframe::App for ClientFrontend {
-    fn save(&mut self, _: &mut dyn eframe::Storage) {
-        //eframe::set_value(storage, eframe::APP_KEY, self);
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        let settings: &Settings = &self.settings.lock().unwrap();
+        eframe::set_value(storage, "Settings", settings);
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {

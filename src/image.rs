@@ -2,16 +2,13 @@ use directories::ProjectDirs;
 use egui::{ColorImage, TextureHandle, TextureId, TextureOptions, Vec2};
 use image::{DynamicImage, ImageReader};
 use std::{
-    collections::HashMap,
-    fs::{self, File},
-    hash::{DefaultHasher, Hash, Hasher},
-    io::Write,
-    path::PathBuf,
-    sync::{
+    borrow::Borrow, collections::HashMap, fs::{self, File}, hash::{DefaultHasher, Hash, Hasher}, io::Write, path::PathBuf, sync::{
         mpsc::{Receiver, Sender},
         Arc, Mutex,
-    },
+    }
 };
+
+use crate::settings::Settings;
 
 pub enum LoadableImage {
     /// Completely unplanned, doesn't exist
@@ -33,7 +30,7 @@ pub struct ImageCache {
 }
 
 impl ImageCache {
-    pub fn new(ctx: egui::Context) -> Self {
+    pub fn new(ctx: egui::Context, settings: Arc<Mutex<Settings>>) -> Self {
         let (tx0, rx1) = std::sync::mpsc::channel();
 
         let proj_dirs = ProjectDirs::from("dev", "headassbtw", "com.headassbtw.metro.bluesky");
@@ -54,13 +51,13 @@ impl ImageCache {
         let map0 = map.clone();
 
         tokio::task::spawn(async move {
-            let _result = ImageCache::run(rx1, map0, cache, ctx).await;
+            let _result = ImageCache::run(rx1, map0, cache, ctx, settings).await;
         });
 
         Self { db: map, tx: tx0 }
     }
 
-    async fn run(rx1: Receiver<LoaderRequest>, map: Arc<Mutex<HashMap<String, Option<TextureHandle>>>>, cache: PathBuf, ctx: egui::Context) -> anyhow::Result<()> {
+    async fn run(rx1: Receiver<LoaderRequest>, map: Arc<Mutex<HashMap<String, Option<TextureHandle>>>>, cache: PathBuf, ctx: egui::Context, settings: Arc<Mutex<Settings>>) -> anyhow::Result<()> {
         println!("image cache dir: {}", cache.to_str().unwrap());
         let client = reqwest::Client::builder().user_agent("some fuckass rust app that looks like windows 8").build();
         if let Err(err) = client {
@@ -72,8 +69,26 @@ impl ImageCache {
             while let Ok(req) = rx1.try_recv() {
                 let req = match req {
                     LoaderRequest::Shutdown => break 'outer Ok(()),
-                    LoaderRequest::GetImg(resdb_path) => resdb_path,
+                    LoaderRequest::GetImg(path) => { path },
                 };
+                let req_og = req.clone();
+                let req = match settings.lock().unwrap().preferred_image_format {
+                    crate::settings::PreferredImageFormat::Original => { req },
+                    crate::settings::PreferredImageFormat::Png => {
+                        if req.contains("@jpeg")  {
+                            req.replace("@jpeg", "@png")
+                        } else if req.contains("@jpg") {
+                            req.replace("@jpg", "@png")
+                        } else { req }
+                    },
+                    crate::settings::PreferredImageFormat::Jpeg => {
+                        if req.contains("@png")  {
+                            req.replace("@png", "@jpg")
+                        } else { req }
+                    },
+                };
+
+                println!("searching for {}", &req);
 
                 if req.is_empty() {
                     println!("tried to load an empty URL from image cache");
@@ -92,7 +107,7 @@ impl ImageCache {
                 } else if let Some(ex) = path.split(".").last() {
                     ex
                 } else {
-                    "webp" //optimism
+                    "png"
                 };
 
                 let web_path = req.clone();
@@ -102,6 +117,7 @@ impl ImageCache {
                 file_path.push(format!("{}.{}", hasher.finish().to_string(), extension));
 
                 if !file_path.exists() {
+                    println!("downloading {}", &web_path);
                     let dl = client.get(&web_path).send().await;
 
                     if let Err(err) = dl {
@@ -122,13 +138,15 @@ impl ImageCache {
                         println!("Failed to copy file! Reason: {:?}", err);
                         continue;
                     }
+                } else {
+                    println!("{:?} exists", &file_path);
                 }
 
                 let file_read = Self::load_from_fs(ctx.clone(), &file_path);
 
                 if let Ok(fil) = file_read {
                     let mut map = map.lock().unwrap();
-                    map.insert(req.clone(), Some(fil));
+                    map.insert(req_og, Some(fil));
                     ctx.request_repaint(); // there's probably a user waiting on this, it won't update until it needs to, or this requests it
                 } else if let Err(err) = file_read {
                     println!("Failed to read image! {:?}", err);
@@ -140,7 +158,7 @@ impl ImageCache {
     pub fn load_from_fs(ctx: egui::Context, path: &PathBuf) -> anyhow::Result<TextureHandle> {
         let identifier = path.file_name().unwrap().to_str().unwrap();
 
-        //println!("Loading image {:?}", path);
+        println!("Loading image {:?}", path);
         let img = ImageReader::open(path);
         if img.is_err() {
             return Err(anyhow::Error::msg(format!("Failed to open \"{}\"!", path.to_string_lossy())));

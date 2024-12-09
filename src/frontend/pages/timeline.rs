@@ -28,7 +28,7 @@ impl FrontendTimelineView {
         Self { timeline: Vec::new(), timeline_cursor: Some("".to_owned()), post_highlight: (0, 999.999, false) }
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> &str {
+    pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
         ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
@@ -166,6 +166,6 @@ impl FrontendTimelineView {
             self.modal = Some(crate::frontend::main::ClientFrontendModal::LoginModal(data));
         }
         */
-        "Timeline"
+        ("Timeline", true)
     }
 }

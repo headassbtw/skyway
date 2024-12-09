@@ -1,10 +1,10 @@
-use crate::backend::{
+use crate::{backend::{
     main::BlueskyLoginResponse,
     record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
     responses::timeline::BlueskyApiTimelineResponse,
     thread::BlueskyApiGetThreadResponse,
     BlueskyApiError, ClientBackend,
-};
+}, settings::Settings};
 use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::PostView};
 use anyhow::Result;
 use std::sync::{
@@ -44,14 +44,14 @@ pub struct Bridge {
 }
 
 impl Bridge {
-    pub fn new(ctx: egui::Context) -> Self {
+    pub fn new(ctx: egui::Context, settings: Arc<Mutex<Settings>>) -> Self {
         let (backend_commander, backend_listener) = std::sync::mpsc::channel();
         let (frontend_commander, frontend_listener) = std::sync::mpsc::channel();
         let ctx_burn = ctx.clone();
         tokio::task::spawn(async move {
             //let die_fallback_transmittter = backend_responder.clone();
             //panic::set_hook(Box::new( |_| {}));
-            let result = Self::run(backend_listener, frontend_commander, ctx_burn).await;
+            let result = Self::run(backend_listener, frontend_commander, ctx_burn, settings).await;
             if let Err(result) = result {
                 panic!("Bridge failed! {}", result);
             }
@@ -60,7 +60,7 @@ impl Bridge {
         Self { frontend_listener, backend_commander }
     }
 
-    async fn run(rx: Receiver<FrontToBackMsg>, tx: Sender<BackToFrontMsg>, ctx: egui::Context) -> Result<()> {
+    async fn run(rx: Receiver<FrontToBackMsg>, tx: Sender<BackToFrontMsg>, ctx: egui::Context, _settings: Arc<Mutex<Settings>>) -> Result<()> {
         let mut api = ClientBackend::new();
 
         let vault = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt");

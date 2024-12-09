@@ -17,7 +17,7 @@ impl FrontendProfileView {
     pub fn new(did: String) -> Self {
         Self { profile_data: None, id_cmp: did, loading: false }
     }
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache) -> &str {
+    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache) -> (&str, bool) {
         puffin::profile_function!();
         if let Some(profile) = &self.profile_data {
             let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_min_x(ui.ctx().screen_rect().left()).with_max_y(ui.ctx().screen_rect().bottom());
@@ -151,6 +151,6 @@ impl FrontendProfileView {
                 self.loading = true;
             }
         }
-        "Profile"
+        ("Profile", true)
     }
 }
