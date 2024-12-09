@@ -1,10 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    backend::record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef},
-    bridge::Bridge,
-    defs::bsky::{embed, feed::defs::PostView},
-    frontend::{
+    backend::record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef}, bridge::Bridge, defs::bsky::{embed, feed::defs::PostView}, frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
@@ -14,9 +11,7 @@ use crate::{
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
         },
-    },
-    image::{ImageCache, LoadableImage},
-    widgets::{click_context_menu, spinner::SegoeBootSpinner},
+    }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}
 };
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
@@ -245,14 +240,22 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
                             println!("image clicked!");
                         }
                     }
-                    embed::Variant::External { external: _ } => {
-                        let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
-                            quote.with_layout(Layout::left_to_right(egui::Align::Min), |name| {
-                                name.weak("External Link/Embed");
-                            });
-                        });
+                    embed::Variant::External { external } => {
+                        let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |link| {
+                            link.add(egui::Label::new(&external.title).selectable(false));
+                            if external.description.len() > 0 {
+                                link.add(egui::Label::new(&external.description).selectable(false));
+                            }
+                            let rect = link.allocate_space(vec2(link.cursor().width(), 2.0)).1;
+                            link.painter().rect_filled(rect, Rounding::ZERO, link.visuals().weak_text_color());
+                            link.add(egui::Label::new(&external.uri).selectable(false));
+                        }).response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
 
-                        post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.style().visuals.text_color()));
+                        post_contents.painter().rect(resp.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.visuals().weak_text_color()));
+
+                        if resp.clicked() {
+                            open_in_browser(&external.uri);
+                        }
                     }
                     embed::Variant::Record { record } => {
                         puffin::profile_scope!("Record");
@@ -356,10 +359,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
                         let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
                         let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
 
-                        #[cfg(target_os = "linux")]
-                        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
-                        #[cfg(target_os = "windows")]
-                        let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
+                        open_in_browser(&url);
                     }
                 });
             });

@@ -3,10 +3,16 @@ pub mod bridge;
 pub mod frontend;
 pub mod image;
 pub mod widgets;
-
 pub mod defs;
 
 use crate::frontend::main::ClientFrontend;
+
+fn open_in_browser(url: &str) {
+    #[cfg(target_os = "linux")]
+    let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+    #[cfg(target_os = "windows")]
+    let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
+}
 
 #[tokio::main]
 async fn main() -> eframe::Result {

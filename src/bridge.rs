@@ -138,6 +138,9 @@ impl Bridge {
                             if let Some(viewer) = &mut post.viewer {
                                 viewer.like = Some(res.uri);
                             }
+                            if let Some(count) = &mut post.like_count {
+                                *count += 1;
+                            }
                         }
                         Err(err) => tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?,
                     },
@@ -146,6 +149,9 @@ impl Bridge {
                             let mut post = post_mod.lock().unwrap();
                             if let Some(viewer) = &mut post.viewer {
                                 viewer.repost = Some(res.uri);
+                            }
+                            if let Some(count) = &mut post.repost_count {
+                                *count += 1;
                             }
                         }
                         Err(err) => tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?,
@@ -159,13 +165,21 @@ impl Bridge {
                     match api.delete_record(rkey, nsid.clone()).await {
                         Ok(_) => match nsid.as_str() {
                             "app.bsky.feed.like" => {
-                                if let Some(viewer) = &mut post_mod.lock().unwrap().viewer {
+                                let mut post = post_mod.lock().unwrap();
+                                if let Some(viewer) = &mut post.viewer {
                                     viewer.like = None;
+                                }
+                                if let Some(count) = &mut post.like_count {
+                                    *count -= 1;
                                 }
                             }
                             "app.bsky.feed.repost" => {
-                                if let Some(viewer) = &mut post_mod.lock().unwrap().viewer {
+                                let mut post = post_mod.lock().unwrap();
+                                if let Some(viewer) = &mut post.viewer {
                                     viewer.repost = None;
+                                }
+                                if let Some(count) = &mut post.repost_count {
+                                    *count -= 1;
                                 }
                             }
                             _ => {
