@@ -180,14 +180,19 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
                                             continue;
                                         }
                                         puffin::profile_scope!("Image");
-                                        let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
-                                        let img_rect = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
-                                        match img_cache.get_image(&img.thumb) {
+                                        let img_rect = match img_cache.get_image(&img.thumb) {
                                             LoadableImage::Unloaded | LoadableImage::Loading => {
-                                                container.painter().rect_filled(img_rect.rect, Rounding::ZERO, Color32::GRAY);
+                                                let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
+                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
+                                                container.painter().rect_filled(rtn.rect, Rounding::ZERO, Color32::GRAY);
+                                                rtn
                                             }
-                                            LoadableImage::Loaded(id, _) => {
-                                                container.painter().image(id, img_rect.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                                            LoadableImage::Loaded(id, ratio) => {
+                                                // kind of jank because sometimes the ratio won't send but it always does when loaded
+                                                let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { ratio.x / ratio.y };
+                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
+                                                container.painter().image(id, rtn.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                                                rtn
                                             }
                                         };
                                         if img.alt.len() > 0 as usize {

@@ -88,8 +88,6 @@ impl ImageCache {
                     },
                 };
 
-                println!("searching for {}", &req);
-
                 if req.is_empty() {
                     println!("tried to load an empty URL from image cache");
                     continue;
@@ -117,7 +115,6 @@ impl ImageCache {
                 file_path.push(format!("{}.{}", hasher.finish().to_string(), extension));
 
                 if !file_path.exists() {
-                    println!("downloading {}", &web_path);
                     let dl = client.get(&web_path).send().await;
 
                     if let Err(err) = dl {
@@ -138,8 +135,6 @@ impl ImageCache {
                         println!("Failed to copy file! Reason: {:?}", err);
                         continue;
                     }
-                } else {
-                    println!("{:?} exists", &file_path);
                 }
 
                 let file_read = Self::load_from_fs(ctx.clone(), &file_path);
@@ -158,7 +153,6 @@ impl ImageCache {
     pub fn load_from_fs(ctx: egui::Context, path: &PathBuf) -> anyhow::Result<TextureHandle> {
         let identifier = path.file_name().unwrap().to_str().unwrap();
 
-        println!("Loading image {:?}", path);
         let img = ImageReader::open(path);
         if img.is_err() {
             return Err(anyhow::Error::msg(format!("Failed to open \"{}\"!", path.to_string_lossy())));

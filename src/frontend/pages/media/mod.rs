@@ -1,7 +1,7 @@
 pub mod image;
 pub mod video;
 
-use egui::{pos2, vec2, Align2, Color32, FontId, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, Rounding, UiBuilder};
 use image::FrontendMediaImageView;
 use video::FrontendMediaVideoView;
 
@@ -16,10 +16,11 @@ pub enum FrontendMediaViewVariant {
 
 impl FrontendMediaViewVariant {
     pub fn render(&mut self, ui: &mut egui::Ui, image: &ImageCache, new_view: &mut MainViewProposition) -> (&str, bool) {
+        ui.painter().rect_filled(ui.ctx().screen_rect(), Rounding::ZERO, Color32::BLACK);
         //TODO: find actual dimentions, i have refs on my main computer but i'm comfy rn
         let back_rect = ui.allocate_rect(egui::Rect::from_center_size(ui.ctx().screen_rect().left_top() + vec2(60.0, 60.0), vec2(40.0, 40.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
 
-        if back_rect.clicked() {
+        if back_rect.clicked() || ui.input(|r| r.key_pressed(egui::Key::Escape)) {
             new_view.1 = true;
         }
 
