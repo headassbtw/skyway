@@ -8,7 +8,7 @@ impl ClientBackend {
     }
 
     pub async fn get_profile(&mut self, did: String) -> Result<defs::bsky::actor::defs::ProfileViewDetailed, BlueskyApiError> {
-        let request = self.client.get(format!("{}/xrpc/app.bsky.actor.getProfile?actor={}", self.standard_pds, did));
+        let request = self.client.get(format!("{}/xrpc/app.bsky.actor.getProfile?actor={}", self.user_pds, did));
         let req = self.make_request(request).await;
         if let Err(err) = req {
             return Err(err);

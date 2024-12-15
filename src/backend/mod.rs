@@ -40,9 +40,14 @@ pub struct ClientBackend {
 impl ClientBackend {
     pub async fn make_request(&mut self, request: RequestBuilder) -> Result<String, BlueskyApiError> {
         if self.access_token_expiry < Utc::now() {
+            println!("Token was outdated, refreshing...");
             self.login_refresh(self.refresh_token.clone()).await;
+            println!("Refreshed.");
         }
-        let response = request.bearer_auth(&self.access_token).send().await;
+
+        let request = request.bearer_auth(&self.access_token);
+        println!("{:?}", request);
+        let response = request.send().await;
 
         if let Err(err) = response {
             return Err(BlueskyApiError::NetworkError(format!("{:?}", err)));

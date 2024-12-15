@@ -17,12 +17,6 @@ pub enum FrontendMediaViewVariant {
 impl FrontendMediaViewVariant {
     pub fn render(&mut self, ui: &mut egui::Ui, image: &ImageCache, new_view: &mut MainViewProposition) -> (&str, bool) {
         ui.painter().rect_filled(ui.ctx().screen_rect(), Rounding::ZERO, Color32::BLACK);
-        //TODO: find actual dimentions, i have refs on my main computer but i'm comfy rn
-        let back_rect = ui.allocate_rect(egui::Rect::from_center_size(ui.ctx().screen_rect().left_top() + vec2(60.0, 60.0), vec2(40.0, 40.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-
-        if back_rect.clicked() || ui.input(|r| r.key_pressed(egui::Key::Escape)) {
-            new_view.1 = true;
-        }
 
         match self {
             FrontendMediaViewVariant::Image(data) => {
@@ -33,6 +27,13 @@ impl FrontendMediaViewVariant {
             }
         }
         // this is down here so it's always above the image or video
+        //TODO: find actual dimentions, i have refs on my main computer but i'm comfy rn
+        let back_rect = ui.allocate_rect(egui::Rect::from_center_size(ui.ctx().screen_rect().left_top() + vec2(60.0, 60.0), vec2(40.0, 40.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+
+        if back_rect.clicked() || ui.input(|r| r.key_pressed(egui::Key::Escape)) {
+            new_view.1 = true;
+        }
+        
         ui.painter().text(back_rect.rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
         ("", false)
     }

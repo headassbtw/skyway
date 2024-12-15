@@ -141,7 +141,15 @@ impl FrontendProfileView {
                         #[cfg(target_os = "windows")]
                         let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
                     }
+
+
+                    let raw_profile = ui.allocate_response(vec2(height * 0.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                    ui.painter().rect_filled(raw_profile.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+                    let mut text_ui = ui.new_child(UiBuilder::new().layout(Layout::left_to_right(egui::Align::Max)).max_rect(raw_profile.rect.shrink(8.0)));
+                    text_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
+                    text_ui.label(format!("{:?}", profile));
                 });
+
                 ui.allocate_space(vec2(2000.0, 0.0));
             });
         } else {

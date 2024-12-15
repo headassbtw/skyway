@@ -22,13 +22,34 @@ struct JwtMidsection {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct AtProtoService {
+    pub id: String,
+    pub r#type: String,
+    pub serviceEndpoint: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+/// THERE'S NO SPEC FOR THIS. IT DOESN'T FUCKING EXIST. T'm guessing this on API responses and github issues.
+pub struct DidDoc {
+    #[serde(rename = "@context")]
+    pub context: Vec<serde_json::Value>,
+    pub id: String,
+    pub also_known_as: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub verification_method: Option<Vec<serde_json::Value>>,
+    pub service: Vec<AtProtoService>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BlueskyApiLoginResponse {
     pub access_jwt: String,
     pub refresh_jwt: String,
     pub handle: String,
     pub did: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub did_doc: Option<serde_json::Value>,
+    pub did_doc: Option<DidDoc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -69,9 +90,19 @@ impl ClientBackend {
             StatusCode::OK => {
                 let jason_bytes = if let Ok(res) = res.bytes().await { res } else { return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic("Failed to read response".into())) };
                 let jason: &str = if let Ok(res) = std::str::from_utf8(&jason_bytes) { res } else { return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic("Failed to decode response".into())) };
-                let response: BlueskyApiLoginResponse = serde_json::from_str(jason).unwrap();
+                let response: Result<BlueskyApiLoginResponse, serde_json::Error> = serde_json::from_str(jason);
+                if response.is_err() {
+                    return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic(format!("{:?}\n{}", response, jason)));
+                }
+                let response = response.unwrap();
+
                 self.did = response.did;
                 self.access_token = response.access_jwt;
+                if let Some(did_doc) = response.did_doc {
+                    if did_doc.service.len() > 0 {
+                        self.user_pds = did_doc.service[0].serviceEndpoint.clone();
+                    }
+                }
 
                 if response.active.is_none() || !response.active.unwrap() {
                     let reason = response.status;
