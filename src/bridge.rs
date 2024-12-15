@@ -1,11 +1,10 @@
 use crate::{backend::{
     main::BlueskyLoginResponse,
     record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
-    responses::timeline::BlueskyApiTimelineResponse,
     thread::BlueskyApiGetThreadResponse,
     BlueskyApiError, ClientBackend,
-}, settings::Settings};
-use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::PostView};
+}, defs::bsky::feed::defs::FeedViewPost, settings::Settings};
+use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, PostView}};
 use anyhow::Result;
 use std::sync::{
     mpsc::{Receiver, Sender},
@@ -20,6 +19,7 @@ pub enum FrontToBackMsg {
     GetTimelineRequest(Option<String>, Option<u32>),
     GetProfileRequest(String),
     GetThreadRequest(String),
+    GetAuthorFeedRequest(String, String, Arc<Mutex<FeedCursorPair>>),
 
     CreateRecordRequest(BlueskyApiRecord),
     CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<PostView>>),
@@ -30,7 +30,7 @@ pub enum FrontToBackMsg {
 
 pub enum BackToFrontMsg {
     LoginResponse(BlueskyLoginResponse, Option<ProfileViewDetailed>),
-    TimelineResponse(Result<BlueskyApiTimelineResponse, BlueskyApiError>),
+    TimelineResponse(Result<FeedCursorPair, BlueskyApiError>),
     KeyringFailure(String),
     RecordCreationResponse(Result<BlueskyApiCreateRecordResponse, BlueskyApiError>),
     RecordDeletionResponse(Result<BlueskyApiDeleteRecordResponse, BlueskyApiError>),
@@ -124,7 +124,21 @@ impl Bridge {
                 }
                 FrontToBackMsg::GetThreadRequest(uri) => {
                     tx.send(BackToFrontMsg::ThreadResponse(uri.clone(), api.get_thread(uri, None, None).await))?;
-                }
+                },
+                FrontToBackMsg::GetAuthorFeedRequest(did, cursor, posts) => {
+                    let res = api.get_author_feed(did, cursor).await;
+                    if let Err(err) = &res {
+                        println!("Failure {:?}", err);
+                    }
+
+                    let mut res = res.unwrap();
+
+                    {
+                        let mut poasts = posts.lock().unwrap();
+                        poasts.cursor = res.cursor;
+                        poasts.feed.append(&mut res.feed);
+                    }
+                },
                 FrontToBackMsg::CreateRecordRequest(record) => {
                     tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
                 }

@@ -66,47 +66,8 @@ impl FrontendTimelineView {
             for i in 0..length {
                 puffin::profile_scope!("Post");
                 let post = &self.timeline[i];
-                if post.reason.is_some() || post.reply.is_some() {
-                    puffin::profile_scope!("Reason");
-                    tl.style_mut().spacing.item_spacing = vec2(10.0, 2.0);
-                    tl.with_layout(Layout::left_to_right(egui::Align::TOP), |name| {
-                        name.allocate_space(vec2(60.0, 2.0));
-                        name.style_mut().spacing.item_spacing.x = 0.0;
-                        if let Some(reason) = &post.reason {
-                            match reason {
-                                Reason::Repost(repost) => {
-                                    name.weak("\u{E201} Reposted by ");
-                                    if name.link(egui::RichText::new(repost.by.easy_name()).color(name.visuals().weak_text_color())).clicked() {
-                                        new_view.set(FrontendMainView::Profile(FrontendProfileView::new(repost.by.did.clone())));
-                                    }
-                                }
-                                Reason::Pin => {
-                                    name.weak("Pinned");
-                                }
-                            }
-                        } else if let Some(reply) = &post.reply {
-                            match &reply.parent {
-                                RelatedPostVariant::Post(post) => {
-                                    name.weak("\u{E200} Replying to ");
-                                    if name.link(egui::RichText::new(post.author.easy_name()).color(name.visuals().weak_text_color())).clicked() {
-                                        new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
-                                    }
-                                }
-                                RelatedPostVariant::NotFound(_) => {
-                                    name.weak("\u{E200} Replying to an unknown post");
-                                }
-                                RelatedPostVariant::Blocked(_) => {
-                                    name.weak("\u{E200} Replying to a blocked post");
-                                }
-                            }
-                        }
-                    });
-                    tl.style_mut().spacing.item_spacing.y = 10.0;
-                }
-                let res = viewers::post::post_viewer(tl, post.post.clone(), false, backend, image, flyout, new_view);
-                if res.clicked() {
-                    println!("outside");
-                }
+                
+                let res = viewers::feed_post::feed_post_viewer(tl, &post, backend, image, flyout, new_view);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
                 {
                     puffin::profile_scope!("Keyboard nav part B");

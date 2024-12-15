@@ -99,7 +99,7 @@ impl FrontendMainViewStack {
             }
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image),
+            FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),
         };
         

@@ -1,9 +1,9 @@
 use super::{responses, BlueskyApiError, ClientBackend};
 
-use responses::timeline::BlueskyApiTimelineResponse;
+use crate::defs::bsky::feed::defs::FeedCursorPair;
 
 impl ClientBackend {
-    pub async fn get_timeline(&mut self, cursor: Option<String>, limit: Option<u32>) -> Result<BlueskyApiTimelineResponse, BlueskyApiError> {
+    pub async fn get_timeline(&mut self, cursor: Option<String>, limit: Option<u32>) -> Result<FeedCursorPair, BlueskyApiError> {
         let limit = if let Some(limit) = limit { limit } else { 50 };
         let cursor = if let Some(cursor) = cursor { format!("&cursor={}", cursor) } else { String::new() };
         let target = format!("{}/xrpc/app.bsky.feed.getTimeline?limit={}{}", self.user_pds, limit, cursor);
@@ -15,7 +15,7 @@ impl ClientBackend {
         }
         let text = request.unwrap();
 
-        let fin: Result<BlueskyApiTimelineResponse, serde_json::Error> = serde_json::from_str(&text);
+        let fin: Result<FeedCursorPair, serde_json::Error> = serde_json::from_str(&text);
 
         if let Ok(fin) = fin {
             /*

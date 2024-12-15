@@ -52,6 +52,15 @@ pub struct ViewerState {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct FeedCursorPair {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cursor: Option<String>,
+    pub feed: Vec<FeedViewPost>,
+}
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct FeedViewPost {
     pub post: Arc<Mutex<PostView>>,
     #[serde(skip_serializing_if = "Option::is_none")]

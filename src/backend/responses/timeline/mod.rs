@@ -6,14 +6,6 @@ use crate::backend::record::BlueskyApiReplyRef;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct BlueskyApiTimelineResponse {
-    pub feed: Vec<crate::defs::bsky::feed::defs::FeedViewPost>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub cursor: Option<String>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
 pub struct BlueskyApiTimelinePostRecord {
     pub text: String,
     pub created_at: DateTime<Utc>,

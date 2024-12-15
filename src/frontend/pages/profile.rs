@@ -1,33 +1,53 @@
+use std::sync::{Arc, Mutex};
+
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Ui, UiBuilder};
+use puffin::profile_scope;
 
 use crate::bridge::FrontToBackMsg;
 use crate::defs::bsky::actor::defs::ProfileViewDetailed;
+use crate::defs::bsky::feed::defs::{FeedCursorPair, FeedViewPost};
+use crate::frontend::main::ClientFrontendFlyout;
 use crate::frontend::pages::BSKY_BLUE;
+use crate::frontend::viewers::feed_post::feed_post_viewer;
 use crate::image::LoadableImage;
 use crate::widgets::spinner::SegoeBootSpinner;
 use crate::{bridge::Bridge, image::ImageCache};
+
+use super::MainViewProposition;
 #[derive(Debug)]
 pub struct FrontendProfileView {
     pub profile_data: Option<ProfileViewDetailed>,
     pub id_cmp: String,
     pub loading: bool,
+    pub posts: Option<Arc<Mutex<FeedCursorPair>>>,
 }
+
+// E13D NONE
+// E1E2 PLUS
+// E181 STOP
+// E1E0 BLOCK
 
 impl FrontendProfileView {
     pub fn new(did: String) -> Self {
-        Self { profile_data: None, id_cmp: did, loading: false }
+        Self { profile_data: None, id_cmp: did, loading: false, posts: None }
     }
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache) -> (&str, bool) {
+    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
         if let Some(profile) = &self.profile_data {
+            let title_pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
             let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_min_x(ui.ctx().screen_rect().left()).with_max_y(ui.ctx().screen_rect().bottom());
             let height = funny_rect.height() - funny_rect.top();
             let panel_height = (height - (8.0)) * (1.0 / 3.0);
             let offset_left = ui.cursor().left() - 4.0;
             let mut who_gaf = ui.child_ui(funny_rect, Layout::left_to_right(egui::Align::Min), None);
             who_gaf.style_mut().spacing.item_spacing = vec2(4.0, 4.0);
+
+            let title_fontid = FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into()));
+            ui.painter().text(title_pos, Align2::LEFT_BOTTOM, "Profile", title_fontid.clone(), BSKY_BLUE);
+
             ScrollArea::horizontal().vscroll(false).max_width(funny_rect.width()).max_height(funny_rect.height()).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
                 ui.allocate_space(vec2(offset_left, funny_rect.height()));
+
                 ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
                     let (_, rect0) = ui.allocate_space(vec2(height * 1.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y));
                     let (_, rect1) = ui.allocate_space(vec2(height * 1.5, panel_height));
@@ -153,9 +173,50 @@ impl FrontendProfileView {
                         #[cfg(target_os = "windows")]
                         let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
                     }
-                });
 
-                ui.allocate_space(vec2(2000.0, 0.0));
+                    if let Some(viewer) = &profile.viewer { profile_scope!("Follow Button");
+                        let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                        ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+
+                        let (icon, text) = if viewer.following.is_some() {
+                            if button.hovered() {
+                                ("\u{E181}", "Unfollow")
+                            } else {
+                                ("\u{E13D}", "Following")
+                            }
+                        } else {
+                            ("\u{E1E2}", "Follow")
+                        };
+
+                        ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, icon, FontId::new(big_text_size, egui::FontFamily::Name("Segoe Symbols".into())), ui.style().visuals.text_color());
+                        ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
+
+                    }
+                });
+                ui.allocate_space(vec2(300.0, funny_rect.height()));
+                ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
+                    let pos = if ui.cursor().left() <= title_pos.x { title_pos } else { pos2(ui.cursor().left(), title_pos.y) };
+                    ui.allocate_space(vec2(ui.ctx().screen_rect().width() - offset_left, 0.0));
+                    ui.painter().rect_filled(Rect::from_two_pos(pos2(pos.x, pos.y-60.0), pos2(pos.x + 500.0, pos.y + 10.0)), Rounding::ZERO, ui.style().visuals.panel_fill);
+                    ui.painter().text(pos, Align2::LEFT_BOTTOM, "Posts", title_fontid, BSKY_BLUE);
+
+                    ScrollArea::vertical().max_width(ui.ctx().screen_rect().width() - offset_left).show(ui, |ui| {
+                        if let Some(posts) = &self.posts {
+                            let posts = posts.lock().unwrap();
+                            for post in posts.feed.iter() {
+                                feed_post_viewer(ui, post, &backend, image, flyout, new_view);
+                            }
+                        }
+
+                        let loader_response = ui.add(SegoeBootSpinner::new().size(50.0).color(BSKY_BLUE));
+
+                        if self.posts.is_none() && ui.is_rect_visible(loader_response.rect) {
+                            let mut post_vec = Arc::new(Mutex::new( FeedCursorPair { cursor: None, feed: Vec::new() }));
+                            self.posts = Some(post_vec.clone());
+                            backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest(profile.did.clone(), "".into(), post_vec)).unwrap();
+                        }
+                    });
+                });
             });
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
@@ -164,6 +225,6 @@ impl FrontendProfileView {
                 self.loading = true;
             }
         }
-        ("Profile", true)
+        ("", true)
     }
 }
