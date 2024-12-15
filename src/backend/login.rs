@@ -25,12 +25,12 @@ struct JwtMidsection {
 pub struct AtProtoService {
     pub id: String,
     pub r#type: String,
-    pub serviceEndpoint: String,
+    pub service_endpoint: String,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
-/// THERE'S NO SPEC FOR THIS. IT DOESN'T FUCKING EXIST. T'm guessing this on API responses and github issues.
+/// THERE'S NO SPEC FOR THIS. IT DOESN'T FUCKING EXIST. I'm guessing this on API responses and github issues.
 pub struct DidDoc {
     #[serde(rename = "@context")]
     pub context: Vec<serde_json::Value>,
@@ -100,7 +100,7 @@ impl ClientBackend {
                 self.access_token = response.access_jwt;
                 if let Some(did_doc) = response.did_doc {
                     if did_doc.service.len() > 0 {
-                        self.user_pds = did_doc.service[0].serviceEndpoint.clone();
+                        self.user_pds = did_doc.service[0].service_endpoint.clone();
                     }
                 }
 

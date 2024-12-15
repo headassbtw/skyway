@@ -46,7 +46,6 @@ impl ClientBackend {
         }
 
         let request = request.bearer_auth(&self.access_token);
-        println!("{:?}", request);
         let response = request.send().await;
 
         if let Err(err) = response {

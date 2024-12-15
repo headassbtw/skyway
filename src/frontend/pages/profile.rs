@@ -115,16 +115,28 @@ impl FrontendProfileView {
                         let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                         ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
 
+                        let text = if let Some(viewer) = &profile.viewer {
+                            if viewer.followed_by.is_some() {
+                                "Following (inc. You!)"
+                            } else { "Following" }
+                        } else { "Following" };
+
                         ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, follows_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
-                        ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Following", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+                        ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
                     }
 
                     if let Some(followers_count) = &profile.followers_count {
                         let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                         ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
 
+                        let text = if let Some(viewer) = &profile.viewer {
+                            if viewer.following.is_some() {
+                                "Followers (inc. You)"
+                            } else { "Followers" }
+                        } else { "Followers" };
+
                         ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, followers_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
-                        ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Followers", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+                        ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
                     }
                 });
                 ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
@@ -141,13 +153,6 @@ impl FrontendProfileView {
                         #[cfg(target_os = "windows")]
                         let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
                     }
-
-
-                    let raw_profile = ui.allocate_response(vec2(height * 0.5, (panel_height * 2.0) + ui.style().spacing.item_spacing.y), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-                    ui.painter().rect_filled(raw_profile.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
-                    let mut text_ui = ui.new_child(UiBuilder::new().layout(Layout::left_to_right(egui::Align::Max)).max_rect(raw_profile.rect.shrink(8.0)));
-                    text_ui.style_mut().wrap_mode = Some(egui::TextWrapMode::Wrap);
-                    text_ui.label(format!("{:?}", profile));
                 });
 
                 ui.allocate_space(vec2(2000.0, 0.0));
