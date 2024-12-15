@@ -40,7 +40,7 @@ fn offset_time(time: DateTime<Utc>) -> String {
     }
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -122,7 +122,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
                 puffin::profile_scope!("Text");
                 let mut job = LayoutJob::default();
                 job.wrap = TextWrapping::wrap_at_width(post_contents.cursor().width());
-                let font_id = FontId::proportional(14.0);
+                let font_id = FontId::proportional(if main { 20.0 } else { 14.0 });
                 job.text = post.record.text.clone();
 
                 /* if let Some(facets) = &post.record.facets {
@@ -159,7 +159,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, _main: bool, backend
 
             //post_contents.painter().rect(post_contents.cursor(), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, Color32::ORANGE));
 
-            const MEDIA_SIZE: f32 = 180.0;
+            let MEDIA_SIZE: f32 = if main { 240.0 } else { 180.0 };
 
             if let Some(embed) = &post.embed {
                 puffin::profile_scope!("Embed");

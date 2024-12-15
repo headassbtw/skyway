@@ -170,17 +170,17 @@ impl ImageCache {
                 let img_a = DynamicImage::ImageRgba8(img_decoded.into_rgba8());
                 let ci = ColorImage::from_rgba_unmultiplied([img_a.width() as usize, img_a.height() as usize], img_a.as_bytes());
 
-                return Ok(ctx.load_texture(identifier, ci, TextureOptions::NEAREST));
+                return Ok(ctx.load_texture(identifier, ci, TextureOptions::LINEAR));
             }
             3 => {
                 let ci = ColorImage::from_rgb([img_decoded.width() as usize, img_decoded.height() as usize], img_decoded.as_bytes());
 
-                return Ok(ctx.load_texture(identifier, ci, TextureOptions::NEAREST));
+                return Ok(ctx.load_texture(identifier, ci, TextureOptions::LINEAR));
             }
             4 => {
                 let ci = ColorImage::from_rgba_unmultiplied([img_decoded.width() as usize, img_decoded.height() as usize], img_decoded.as_bytes());
 
-                return Ok(ctx.load_texture(identifier, ci, TextureOptions::NEAREST));
+                return Ok(ctx.load_texture(identifier, ci, TextureOptions::LINEAR));
             }
             _ => return Err(anyhow::Error::msg("unsupported amount of channels")),
         }

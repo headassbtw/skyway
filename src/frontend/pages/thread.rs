@@ -31,7 +31,7 @@ impl FrontendThreadView {
                     let res = Self::render_recursive(ui, &parent, false, backend, image, flyout, new_view);
                     ui.painter().line_segment([pos2(res.rect.left() + 30.0, res.rect.top() + 70.0), pos2(res.rect.left() + 30.0, res.rect.bottom() + (ui.style().spacing.item_spacing.y * 2.0) + 10.0)], ui.style().visuals.widgets.inactive.fg_stroke);
                 }
-                let rtn = viewers::post::post_viewer(ui, thread.post.clone(), false, backend, image, flyout, new_view);
+                let rtn = viewers::post::post_viewer(ui, thread.post.clone(), first, backend, image, flyout, new_view);
 
                 if first {
                     if let Some(replies) = &thread.replies {

@@ -34,6 +34,7 @@ impl FrontendProfileView {
     pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
         if let Some(profile) = &self.profile_data {
+            let right_pad = ui.ctx().screen_rect().width() - ui.cursor().right();
             let title_pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
             let funny_rect = ui.cursor().with_max_x(ui.ctx().screen_rect().right()).with_min_x(ui.ctx().screen_rect().left()).with_max_y(ui.ctx().screen_rect().bottom());
             let height = funny_rect.height() - funny_rect.top();
@@ -193,10 +194,10 @@ impl FrontendProfileView {
 
                     }
                 });
-                ui.allocate_space(vec2(300.0, funny_rect.height()));
+                ui.allocate_space(vec2(120.0, funny_rect.height()));
                 ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
                     let pos = if ui.cursor().left() <= title_pos.x { title_pos } else { pos2(ui.cursor().left(), title_pos.y) };
-                    ui.allocate_space(vec2(ui.ctx().screen_rect().width() - offset_left, 0.0));
+                    ui.allocate_space(vec2(ui.ctx().screen_rect().width() - 240.0, 0.0));
                     ui.painter().rect_filled(Rect::from_two_pos(pos2(pos.x, pos.y-60.0), pos2(pos.x + 500.0, pos.y + 10.0)), Rounding::ZERO, ui.style().visuals.panel_fill);
                     ui.painter().text(pos, Align2::LEFT_BOTTOM, "Posts", title_fontid, BSKY_BLUE);
 
@@ -217,6 +218,7 @@ impl FrontendProfileView {
                         }
                     });
                 });
+                ui.allocate_space(vec2(right_pad, funny_rect.height()));
             });
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
