@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Ui, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, Id, Layout, Rect, Rounding, ScrollArea, Ui, UiBuilder};
 use puffin::profile_scope;
 
 use crate::bridge::FrontToBackMsg;
@@ -20,6 +20,8 @@ pub struct FrontendProfileView {
     pub id_cmp: String,
     pub loading: bool,
     pub posts: Option<Arc<Mutex<FeedCursorPair>>>,
+    ctx: Option<egui::Context>,
+    id: Id,
 }
 
 // E13D NONE
@@ -29,10 +31,23 @@ pub struct FrontendProfileView {
 
 impl FrontendProfileView {
     pub fn new(did: String) -> Self {
-        Self { profile_data: None, id_cmp: did, loading: false, posts: None }
+        Self {
+            profile_data: None,
+            id_cmp: did.clone(),
+            loading: false,
+            posts: None,
+            ctx: None,
+            id: Id::new(format!("{}_profile_scrollview", did)),
+        }
     }
     pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
+        ui.style_mut().spacing.scroll.floating = false;
+        ui.style_mut().spacing.scroll.bar_width = 18.0;
+
+        if self.ctx.is_none() {
+            self.ctx = Some(ui.ctx().clone());
+        }
         if let Some(profile) = &self.profile_data {
             let right_pad = ui.ctx().screen_rect().width() - ui.cursor().right();
             let title_pos = pos2(ui.cursor().left(), ui.cursor().top() - 40.0);
@@ -45,8 +60,7 @@ impl FrontendProfileView {
 
             let title_fontid = FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into()));
             ui.painter().text(title_pos, Align2::LEFT_BOTTOM, "Profile", title_fontid.clone(), BSKY_BLUE);
-
-            ScrollArea::horizontal().vscroll(false).max_width(funny_rect.width()).max_height(funny_rect.height()).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
+            self.id = ScrollArea::horizontal().id_salt(format!("{}_profile_scrollview", profile.did)).vscroll(false).max_width(funny_rect.width()).max_height(funny_rect.height()).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysVisible).show(&mut who_gaf, |ui| {
                 ui.allocate_space(vec2(offset_left, funny_rect.height()));
 
                 ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
@@ -212,14 +226,15 @@ impl FrontendProfileView {
                         let loader_response = ui.add(SegoeBootSpinner::new().size(50.0).color(BSKY_BLUE));
 
                         if self.posts.is_none() && ui.is_rect_visible(loader_response.rect) {
-                            let mut post_vec = Arc::new(Mutex::new( FeedCursorPair { cursor: None, feed: Vec::new() }));
+                            let post_vec = Arc::new(Mutex::new( FeedCursorPair { cursor: None, feed: Vec::new() }));
                             self.posts = Some(post_vec.clone());
                             backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest(profile.did.clone(), "".into(), post_vec)).unwrap();
                         }
                     });
                 });
                 ui.allocate_space(vec2(right_pad, funny_rect.height()));
-            });
+            }).id;
+
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
             if !self.loading {
@@ -228,5 +243,17 @@ impl FrontendProfileView {
             }
         }
         ("", true)
+    }
+}
+
+impl Drop for FrontendProfileView {
+    fn drop(&mut self) {
+        if self.ctx.is_none() { return; }
+        let ctx = self.ctx.clone().unwrap();
+        ctx.data_mut(|map| {
+            if let Some(profile) = &self.profile_data {
+                map.remove::<Id>(self.id);
+            }
+        });
     }
 }

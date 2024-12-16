@@ -16,9 +16,7 @@ use crate::{
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
-    pos2,
-    text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder,
+    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -206,7 +204,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                         }
                                         if img_rect.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                                             new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Image(FrontendMediaImageView::new(img.fullsize.clone()))));
-                                            println!("image clicked!");
                                         }
                                     }
                                 });
@@ -345,10 +342,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     }
                 }
                 click_context_menu::click_context_menu(repost_button, |guh| {
-                    if guh.button(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).clicked() {
+                    guh.spacing_mut().item_spacing.y = 0.0;
+                    if guh.add(Button::new(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
                         repost = Some(rt_override.is_none());
                     }
-                    if guh.add_enabled(false, egui::Button::new("Quote Repost")).clicked() {}
+                    if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
                 });
 
                 let like_override = if post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
@@ -363,12 +361,16 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 }
 
                 click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
-                    if guh.button("Open in browser").clicked() {
+                    guh.spacing_mut().item_spacing.y = 0.0;
+                    if guh.add(Button::new("Open in browser").min_size(vec2(280.0, 40.0))).clicked() {
                         let id = post.uri.split("/").last().unwrap();
                         let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
                         let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
 
                         open_in_browser(&url);
+                    }
+
+                    if guh.add_enabled(false, Button::new("Copy link").min_size(vec2(280.0, 40.0))).clicked() {
                     }
                 });
             });

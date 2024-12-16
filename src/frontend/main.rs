@@ -1,4 +1,4 @@
-use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Rect, Rounding, Stroke, TextStyle, UiBuilder, UiStackInfo};
+use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Margin, Rect, Rounding, Shadow, Stroke, TextStyle, UiBuilder, UiStackInfo};
 use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 
 use crate::{
@@ -89,6 +89,14 @@ impl ClientFrontend {
             style.visuals.widgets.open.rounding = Rounding::ZERO;
             style.spacing.item_spacing.y = 20.0;
             style.visuals.handle_shape = HandleShape::Rect { aspect_ratio: 1.0 };
+            style.visuals.popup_shadow = Shadow::NONE;
+            style.visuals.menu_rounding = Rounding::ZERO;
+            style.visuals.window_stroke = Stroke { width: 2.0, color: Color32::from_gray(36) };
+            style.spacing.menu_margin = Margin::ZERO;
+            style.spacing.menu_spacing = 0.0;
+
+            style.always_scroll_the_only_direction = true;
+
             style.text_styles = text_styles;
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Light, |style| {
