@@ -251,9 +251,7 @@ impl Drop for FrontendProfileView {
         if self.ctx.is_none() { return; }
         let ctx = self.ctx.clone().unwrap();
         ctx.data_mut(|map| {
-            if let Some(profile) = &self.profile_data {
-                map.remove::<Id>(self.id);
-            }
+            map.remove::<egui::scroll_area::State>(self.id);
         });
     }
 }

@@ -421,7 +421,7 @@ impl eframe::App for ClientFrontend {
                 crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
                     if let Some(page) = self.view_stack.top() {
                         match page {
-                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => todo!(),
+                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => { println!("fix this, use a callback for thread responses pleeeeeeeeeeease"); },
                             FrontendMainView::Thread(data) => {
                                 if data.id_cmp == uri {
                                     match res {
