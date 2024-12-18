@@ -2,9 +2,9 @@ use chrono::Utc;
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui};
 
 use crate::{
-    backend::record::{BlueskyApiRecord, BlueskyApiRecordPost, BlueskyApiReplyRef},
+    backend::record::{BlueskyApiRecord, BlueskyApiRecordPost},
     bridge::Bridge,
-    defs::bsky::actor::defs::ProfileViewDetailed,
+    defs::bsky::{actor::defs::ProfileViewDetailed, feed::ReplyRef},
     frontend::{circle_button, main::ClientFrontendFlyoutVariant},
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
@@ -15,7 +15,7 @@ const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 pub struct ComposerFlyout {
     pub draft: String,
     pub sending: bool,
-    pub reply: Option<BlueskyApiReplyRef>,
+    pub reply: Option<ReplyRef>,
 }
 
 impl ComposerFlyout {
@@ -23,7 +23,7 @@ impl ComposerFlyout {
         Self { draft: String::new(), sending: false, reply: None }
     }
 
-    pub fn with_reply(reply: BlueskyApiReplyRef) -> Self {
+    pub fn with_reply(reply: ReplyRef) -> Self {
         Self { draft: String::new(), sending: false, reply: Some(reply) }
     }
 }

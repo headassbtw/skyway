@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    backend::record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef}, bridge::Bridge, defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant}, frontend::{
+    backend::record::{BlueskyApiRecordLike}, bridge::Bridge, defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant}, frontend::{
         main::ClientFrontendFlyout,
         pages::{profile::FrontendProfileView, FrontendMainView, MainViewProposition},
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}

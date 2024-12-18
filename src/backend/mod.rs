@@ -6,7 +6,6 @@ pub mod login;
 pub mod main;
 pub mod profile;
 pub mod record;
-pub mod responses;
 pub mod simple_actions;
 pub mod thread;
 pub mod timeline;

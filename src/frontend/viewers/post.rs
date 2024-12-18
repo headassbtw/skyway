@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    backend::record::{BlueskyApiRecordLike, BlueskyApiReplyRef, BlueskyApiStrongRef}, bridge::Bridge, defs::bsky::{embed, feed::defs::PostView}, frontend::{
+    backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
@@ -76,7 +76,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 ui.painter().text(pfp_rect.center(), Align2::CENTER_CENTER, "", FontId::new(50.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
             }
         }
-        let tmp = ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
+        ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
             let the_width_you_care_about = post_contents.cursor().width();
             post_contents.set_max_width(the_width_you_care_about);
             post_contents.allocate_new_ui(UiBuilder::new().layout(Layout::left_to_right(egui::Align::TOP)), |name| 'render_name: {
@@ -155,16 +155,14 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 }
             }
 
-            //post_contents.painter().rect(post_contents.cursor(), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, Color32::ORANGE));
-
-            let MEDIA_SIZE: f32 = if main { 240.0 } else { 180.0 };
+            let media_size: f32 = if main { 240.0 } else { 180.0 };
 
             if let Some(embed) = &post.embed {
                 puffin::profile_scope!("Embed");
                 match embed {
                     embed::Variant::Images { images } => 'render_images: {
                         puffin::profile_scope!("Images");
-                        let img_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + MEDIA_SIZE);
+                        let img_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + media_size);
                         if !post_contents.is_rect_visible(img_rect) {
                             puffin::profile_scope!("Image Short-Circuit");
                             post_contents.allocate_rect(img_rect, egui::Sense::click());
@@ -181,14 +179,14 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                         let img_rect = match img_cache.get_image(&img.thumb) {
                                             LoadableImage::Unloaded | LoadableImage::Loading => {
                                                 let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
-                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
+                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (media_size * x_multiplier)), egui::Sense::click());
                                                 container.painter().rect_filled(rtn.rect, Rounding::ZERO, Color32::GRAY);
                                                 rtn
                                             }
                                             LoadableImage::Loaded(id, ratio) => {
                                                 // kind of jank because sometimes the ratio won't send but it always does when loaded
                                                 let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { ratio.x / ratio.y };
-                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (MEDIA_SIZE * x_multiplier)), egui::Sense::click());
+                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (media_size * x_multiplier)), egui::Sense::click());
                                                 container.painter().image(id, rtn.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
                                                 rtn
                                             }
@@ -212,7 +210,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     }
                     embed::Variant::Video(video) => 'render_video: {
                         puffin::profile_scope!("Video");
-                        let video_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + MEDIA_SIZE);
+                        let video_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + media_size);
                         if !post_contents.is_rect_visible(video_rect) {
                             puffin::profile_scope!("Video Short-Circuit");
                             post_contents.allocate_rect(video_rect, egui::Sense::click());
@@ -220,7 +218,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         }
                         let ratio = if let Some(real_ratio) = &video.aspect_ratio { real_ratio.width as f32 / real_ratio.height as f32 } else { 16.0 / 9.0 };
 
-                        let video_rect = video_rect.with_max_x(video_rect.left() + MEDIA_SIZE * ratio);
+                        let video_rect = video_rect.with_max_x(video_rect.left() + media_size * ratio);
 
                         let tex = if let Some(thumb) = &video.thumbnail {
                             match img_cache.get_image(thumb) {
@@ -268,28 +266,32 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
                             quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
                                 embed.horizontal_wrapped(|embed| match record {
-                                    embed::record::View::Record(_) => {
-                                        embed.weak("Record");
+                                    embed::record::Variant::Record(record) => {
+                                        embed.with_layout(Layout::top_down(egui::Align::Min), |embed| {
+                                            embed.label(format!("{:?} ({})", record.author.display_name, record.author.handle));
+                                            embed.separator();
+                                            embed.label(format!("{:?}", record.value));
+                                        });
                                     }
-                                    embed::record::View::NotFound(_) => {
+                                    embed::record::Variant::NotFound(_) => {
                                         embed.weak("Not Found");
                                     }
-                                    embed::record::View::Blocked(_) => {
+                                    embed::record::Variant::Blocked(_) => {
                                         embed.weak("Blocked");
                                     }
-                                    embed::record::View::Detached(_) => {
+                                    embed::record::Variant::Detached(_) => {
                                         embed.weak("Detached Record");
                                     }
-                                    embed::record::View::FeedGenerator(_) => {
+                                    embed::record::Variant::FeedGenerator(_) => {
                                         embed.weak("Feed Generator");
                                     }
-                                    embed::record::View::List(_) => {
+                                    embed::record::Variant::List(_) => {
                                         embed.weak("List");
                                     }
-                                    embed::record::View::Labeler(_) => {
+                                    embed::record::Variant::Labeler(_) => {
                                         embed.weak("Labeler");
                                     }
-                                    embed::record::View::PackView(_) => {
+                                    embed::record::Variant::PackView(_) => {
                                         embed.weak("PackView");
                                     }
                                 });
@@ -321,9 +323,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
                     let button = circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None);
                     if button.clicked() {
-                        let reply = BlueskyApiReplyRef {
-                            root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
-                            parent: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
+                        let reply = ReplyRef {
+                            root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { StrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
+                            parent: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
                         };
                         flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                     }
@@ -374,8 +376,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     }
                 });
             });
-        }); //post contents container
-        tmp
+        }) //post contents container
     }); // main container including pfp
     ui.style_mut().spacing.item_spacing.y = 20.0;
 
@@ -383,7 +384,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
     if let Some(repost) = repost {
         if repost {
-            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
             if let Some(viewer) = &post.viewer {
@@ -396,7 +397,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
     if let Some(like) = like {
         if like {
-            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: BlueskyApiStrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
             if let Some(viewer) = &post.viewer {
@@ -406,8 +407,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
             }
         }
     }
-
-    //ui.painter().rect_filled(ffs.response.rect, Rounding::ZERO, Color32::from_rgba_premultiplied(255, 0, 0, 128));
 
     if ffs.response.clicked() {
         println!("guh!");

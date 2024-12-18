@@ -1,21 +1,9 @@
+use crate::defs::bsky::feed::StrongRef;
+
 use super::{BlueskyApiError, ClientBackend};
 use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BlueskyApiStrongRef {
-    pub uri: String,
-    pub cid: String,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct BlueskyApiReplyRef {
-    pub root: BlueskyApiStrongRef,
-    pub parent: BlueskyApiStrongRef,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -25,7 +13,7 @@ pub struct BlueskyApiRecordPost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub facets: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply: Option<BlueskyApiReplyRef>,
+    pub reply: Option<crate::defs::bsky::feed::ReplyRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embed: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -39,7 +27,7 @@ pub struct BlueskyApiRecordPost {
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiRecordLike {
-    pub subject: BlueskyApiStrongRef,
+    pub subject: StrongRef,
     pub created_at: DateTime<Utc>,
 }
 

@@ -17,7 +17,7 @@ pub enum Variant {
     #[serde(rename = "app.bsky.embed.external#view")]
     External { external: external::View },
     #[serde(rename = "app.bsky.embed.record#view")]
-    Record { record: record::View },
+    Record { record: record::Variant },
     #[serde(rename = "app.bsky.embed.recordWithMedia#view")]
     RecordWithMedia(serde_json::Value),
 }

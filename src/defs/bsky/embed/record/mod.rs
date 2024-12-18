@@ -2,12 +2,14 @@ use serde::{self, Deserialize, Serialize};
 
 use crate::defs::bsky::graph::defs::StarterPackViewBasic;
 
+pub mod record;
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
-pub enum View {
+pub enum Variant {
     #[serde(rename = "app.bsky.embed.record#viewRecord")]
-    Record(serde_json::Value),
+    Record(record::Record),
     #[serde(rename = "app.bsky.embed.record#viewNotFound")]
     NotFound(serde_json::Value),
     #[serde(rename = "app.bsky.embed.record#viewBlocked")]

@@ -1,4 +1,4 @@
-use super::{responses, BlueskyApiError, ClientBackend};
+use super::{BlueskyApiError, ClientBackend};
 
 use crate::defs::bsky::feed::defs::FeedCursorPair;
 
