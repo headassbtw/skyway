@@ -272,8 +272,8 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                             embed.separator();
                                             match &record.value {
                                                 crate::backend::record::BlueskyApiRecord::Post(post) => {
-                                                    embed.label(format!("{:?}", post.text));
-                                                    embed.label(format!("{:?}", post.embed));
+                                                    embed.add(egui::Label::new(format!("{:?}", post.text)).selectable(false));
+                                                    embed.add(egui::Label::new(format!("{:?}", post.embed)).selectable(false));
                                                 },
                                                 crate::backend::record::BlueskyApiRecord::Like(_) |
                                                 crate::backend::record::BlueskyApiRecord::Repost(_) => {},
@@ -304,6 +304,21 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                 });
                             });
                         });
+
+                        if resp.response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                            match record {
+                                embed::record::Variant::Record(record) => {
+                                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(record.uri.clone())));
+                                },
+                                embed::record::Variant::NotFound(_) |
+                                embed::record::Variant::Blocked(_) |
+                                embed::record::Variant::Detached(_) |
+                                embed::record::Variant::FeedGenerator(_) |
+                                embed::record::Variant::List(_) |
+                                embed::record::Variant::Labeler(_) |
+                                embed::record::Variant::PackView(_) => {},
+                            }
+                        }
 
                         post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.style().visuals.text_color()));
                     }
