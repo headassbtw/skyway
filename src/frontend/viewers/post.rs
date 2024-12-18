@@ -270,7 +270,14 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                         embed.with_layout(Layout::top_down(egui::Align::Min), |embed| {
                                             embed.label(format!("{:?} ({})", record.author.display_name, record.author.handle));
                                             embed.separator();
-                                            embed.label(format!("{:?}", record.value));
+                                            match &record.value {
+                                                crate::backend::record::BlueskyApiRecord::Post(post) => {
+                                                    embed.label(format!("{:?}", post.text));
+                                                    embed.label(format!("{:?}", post.embed));
+                                                },
+                                                crate::backend::record::BlueskyApiRecord::Like(_) |
+                                                crate::backend::record::BlueskyApiRecord::Repost(_) => {},
+                                            }
                                         });
                                     }
                                     embed::record::Variant::NotFound(_) => {

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::defs::bsky::feed::StrongRef;
 
 use super::{BlueskyApiError, ClientBackend};
@@ -5,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiRecordPost {
     pub text: String,
@@ -15,7 +17,7 @@ pub struct BlueskyApiRecordPost {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply: Option<crate::defs::bsky::feed::ReplyRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<Arc<crate::defs::bsky::embed::Variant>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub langs: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -24,14 +26,14 @@ pub struct BlueskyApiRecordPost {
     pub tags: Option<Vec<String>>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiRecordLike {
     pub subject: StrongRef,
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
 pub enum BlueskyApiRecord {
@@ -50,7 +52,7 @@ pub struct BlueskyApiCreateRecordResponseCommit {
     pub rev: String,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiCreateRecordResponse {
     pub uri: String,
@@ -61,14 +63,14 @@ pub struct BlueskyApiCreateRecordResponse {
     pub validation_status: Option<String>,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlueskyApiDeleteRecordResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub commit: Option<BlueskyApiCreateRecordResponseCommit>,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct CreateRecordRequest {
     pub repo: String,
@@ -76,7 +78,7 @@ struct CreateRecordRequest {
     pub record: BlueskyApiRecord,
 }
 
-#[derive(Debug, Serialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct DeleteRecordRequest {
     pub repo: String,
