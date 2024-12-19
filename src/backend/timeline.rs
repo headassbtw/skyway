@@ -17,7 +17,15 @@ impl ClientBackend {
 
         let fin: Result<FeedCursorPair, serde_json::Error> = serde_json::from_str(&text);
 
-        if let Ok(fin) = fin {
+        match fin {
+            Ok(fin) => return Ok(fin),
+            Err(err) => {
+                //let rtn = format!("{}\n", err.classify());
+
+
+                return Err(BlueskyApiError::ParseError(err, text))
+            },
+        }
             /*
             for mut obj in &fin.feed {
                 if let Some(guh) = &obj.post.record.facets {
@@ -29,9 +37,5 @@ impl ClientBackend {
                 }
             }
             */
-            return Ok(fin);
-        } else {
-            return Err(BlueskyApiError::ParseError(format!("{:?}", fin.err().unwrap())));
-        }
     }
 }

@@ -98,7 +98,7 @@ impl ClientBackend {
 
         let body = serde_json::to_string::<CreateRecordRequest>(&contents);
         if let Err(err) = body {
-            return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+            return Err(BlueskyApiError::ParseError(err, String::new()));
         }
         let body = body.unwrap();
 
@@ -107,7 +107,7 @@ impl ClientBackend {
 
         let parse: Result<BlueskyApiCreateRecordResponse, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyApiError::ParseError(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
+            return Err(BlueskyApiError::ParseError(err, req));
         }
 
         return Ok(parse.unwrap());
@@ -118,7 +118,7 @@ impl ClientBackend {
 
         let body = serde_json::to_string::<DeleteRecordRequest>(&contents);
         if let Err(err) = body {
-            return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+            return Err(BlueskyApiError::ParseError(err, String::new()));
         }
         let body = body.unwrap();
 
@@ -127,7 +127,7 @@ impl ClientBackend {
 
         let parse: Result<BlueskyApiDeleteRecordResponse, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyApiError::ParseError(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
+            return Err(BlueskyApiError::ParseError(err, req));
         }
 
         return Ok(parse.unwrap());

@@ -235,6 +235,40 @@ impl ClientFrontend {
     pub fn info_modal(&mut self, heading: &str, body: &str) {
         self.modal.set(ClientFrontendModalVariant::ImportantErrorModal(ImportantErrorModal::new(heading.into(), body.into())));
     }
+
+    pub fn error_modal(&mut self, heading: &str, err: BlueskyApiError) {
+        let body = match err {
+            BlueskyApiError::BadRequest(err) =>     format!("Bad Request\n{}\n{}", err.error, err.message),
+            BlueskyApiError::Unauthorized(err) =>   format!("Unauthorized\n{}\n{}", err.error, err.message),
+            BlueskyApiError::NetworkError(err) => {
+                let http = if let Some(code) = err.status() {
+                    &format!("{}", code.as_str())
+                } else { "Unknown HTTP code" };
+                format!("Network Error\n{}\n{}", http, err)
+            },
+            BlueskyApiError::ParseError(err, jason) => {
+                let t = match err.classify() {
+                    serde_json::error::Category::Io => "I/O",
+                    serde_json::error::Category::Syntax => "syntax",
+                    serde_json::error::Category::Data => "data",
+                    serde_json::error::Category::Eof => "EOF",
+                };
+                let guh = jason.split("\n");
+                let mut push = String::new();
+                for (pos, i) in guh.into_iter().enumerate() {
+                    if pos >= err.line() - 7 && pos <= err.line() + 7 {
+                        push.push_str(i);
+                        push.push('\n');
+                    }
+                }
+
+                //let guh2 = guh[(err.column()-1)..(err.column()+1)];
+                format!("Parser {t} error\n{:?}\n{}", err, push)
+            },
+            BlueskyApiError::NotImplemented => "Not Implemented".into(),
+        };
+        self.modal.set(ClientFrontendModalVariant::ImportantErrorModal(ImportantErrorModal::new(heading.into(), body.into())));
+    }
 }
 
 impl ClientFrontendFlyout {
@@ -344,23 +378,26 @@ impl eframe::App for ClientFrontend {
                     };
                 }
                 crate::bridge::BackToFrontMsg::TimelineResponse(tl) => {
-                    if let Ok(tl) = tl {
-                        //TODO: FIX
-                        println!("Recieved {} posts", tl.feed.len());
-                        if let Some(page) = self.view_stack.top() {
-                            match page {
-                                FrontendMainView::Timeline(ref mut data) => {
-                                    data.timeline_cursor = tl.cursor;
-                                    for post in tl.feed {
-                                        data.timeline.push(post);
+                    match tl {
+                        Ok(tl) => {
+                            //TODO: FIX
+                            println!("Recieved {} posts", tl.feed.len());
+                            if let Some(page) = self.view_stack.top() {
+                                match page {
+                                    FrontendMainView::Timeline(ref mut data) => {
+                                        data.timeline_cursor = tl.cursor;
+                                        for post in tl.feed {
+                                            data.timeline.push(post);
+                                        }
                                     }
-                                }
-                                FrontendMainView::Login() | FrontendMainView::Thread(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => {
-                                    println!("fix this :)");
-                                    todo!();
+                                    FrontendMainView::Login() | FrontendMainView::Thread(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => {
+                                        println!("fix this :)");
+                                        todo!();
+                                    }
                                 }
                             }
                         }
+                        Err(err) => self.error_modal("Failed to get timeline", err),
                     }
                 }
                 crate::bridge::BackToFrontMsg::KeyringFailure(reason) => {
@@ -378,15 +415,7 @@ impl eframe::App for ClientFrontend {
                             }
                         }
                     }
-                    Err(err) => {
-                        let s = match err {
-                            BlueskyApiError::BadRequest(error) => format!("{}: {}", error.error, error.message),
-                            BlueskyApiError::Unauthorized(error) => format!("{}: {}", error.error, error.message),
-                            BlueskyApiError::NetworkError(error) => format!("Network Error: {}", error),
-                            BlueskyApiError::ParseError(error) => format!("Parse Error: {}", error),
-                        };
-                        self.info_modal("Failed to delete record", &s);
-                    }
+                    Err(err) => self.error_modal("Failed to create record", err),
                 },
                 crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
                     if let Some(page) = self.view_stack.top() {
@@ -396,11 +425,12 @@ impl eframe::App for ClientFrontend {
                             }
                             FrontendMainView::Profile(data) => {
                                 if data.id_cmp == id {
-                                    if let Ok(profile) = profile {
-                                        data.profile_data = Some(profile);
-                                        data.loading = false;
-                                    } else if let Err(err) = profile {
-                                        self.info_modal("Failed to get profile", &format!("{:?}", err));
+                                    match profile {
+                                        Ok(profile) => {
+                                            data.profile_data = Some(profile);
+                                            data.loading = false;
+                                        },
+                                        Err(err) => self.error_modal("Failed to get profile", err),
                                     }
                                 }
                             }
@@ -409,13 +439,7 @@ impl eframe::App for ClientFrontend {
                 }
                 crate::bridge::BackToFrontMsg::RecordDeletionResponse(data) => {
                     if let Err(err) = data {
-                        let s = match err {
-                            BlueskyApiError::BadRequest(error) => format!("{}: {}", error.error, error.message),
-                            BlueskyApiError::Unauthorized(error) => format!("{}: {}", error.error, error.message),
-                            BlueskyApiError::NetworkError(error) => format!("Network Error: {}", error),
-                            BlueskyApiError::ParseError(error) => format!("Parse Error: {}", error),
-                        };
-                        self.info_modal("Failed to delete record", &s);
+                        self.error_modal("Failed to delete record", err)
                     }
                 }
                 crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
@@ -429,9 +453,7 @@ impl eframe::App for ClientFrontend {
                                             data.data = Some(crate::defs::bsky::feed::defs::ThreadPostVariant::ThreadView(thread.thread));
                                             data.loading = false;
                                         }
-                                        Err(err) => {
-                                            self.info_modal("Failed to get thread", &format!("{:?}", err));
-                                        }
+                                        Err(err) => self.error_modal("Failed to get thread", err),
                                     }
                                 }
                             }
@@ -452,6 +474,12 @@ impl eframe::App for ClientFrontend {
             egui::TopBottomPanel::top("top_panel").show_separator_line(false).max_height(20.0).min_height(20.0).show(ctx, |ui| {
                 puffin::profile_scope!("Menu bar");
                 egui::menu::bar(ui, |ui| {
+                    {
+                        if self.backend.working_indicator.try_lock().is_err() {
+                            ui.weak("Backend working...");
+                        }
+                    }
+                    
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.menu_button("Debug Build", |ui| {
                             ui.style_mut().spacing.item_spacing.y = 0.0;

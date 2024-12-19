@@ -20,8 +20,9 @@ pub struct BlueskyApiErrorMessage {
 pub enum BlueskyApiError {
     BadRequest(BlueskyApiErrorMessage),
     Unauthorized(BlueskyApiErrorMessage),
-    NetworkError(String),
-    ParseError(String),
+    NetworkError(reqwest::Error),
+    ParseError(serde_json::Error, String),
+    NotImplemented,
 }
 
 pub struct ClientBackend {
@@ -48,7 +49,7 @@ impl ClientBackend {
         let response = request.send().await;
 
         if let Err(err) = response {
-            return Err(BlueskyApiError::NetworkError(format!("{:?}", err)));
+            return Err(BlueskyApiError::NetworkError(err));
         }
         let response = response.unwrap();
 
@@ -56,14 +57,14 @@ impl ClientBackend {
 
         let string = response.text().await;
         if let Err(err) = string {
-            return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+            return Err(BlueskyApiError::NetworkError(err));
         }
         let string = string.unwrap();
 
         if status_code == StatusCode::UNAUTHORIZED {
             let error: Result<BlueskyApiErrorMessage, serde_json::Error> = serde_json::from_str(&string);
             if let Err(err) = error {
-                return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+                return Err(BlueskyApiError::ParseError(err, string));
             }
             return Err(BlueskyApiError::Unauthorized(error.unwrap()));
         }
@@ -71,11 +72,17 @@ impl ClientBackend {
         if status_code == StatusCode::BAD_REQUEST {
             let error: Result<BlueskyApiErrorMessage, serde_json::Error> = serde_json::from_str(&string);
             if let Err(err) = error {
-                return Err(BlueskyApiError::ParseError(format!("{:?}", err)));
+                return Err(BlueskyApiError::ParseError(err, string));
             }
             return Err(BlueskyApiError::BadRequest(error.unwrap()));
         }
 
-        return Ok(string);
+        if cfg!(debug_assertions) {
+            let val: Result<serde_json::Value, serde_json::Error> = serde_json::from_str(&string);
+            let val2 = serde_json::to_string_pretty(&val.unwrap()).unwrap();
+            return Ok(val2);
+        } else {
+            return Ok(string);
+        }
     }
 }

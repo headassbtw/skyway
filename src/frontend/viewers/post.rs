@@ -10,13 +10,13 @@ use crate::{
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        },
+        }, viewers::embeds::{images::view_images, record::view_record},
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}
 };
 
 use chrono::{DateTime, Datelike, Timelike, Utc};
 use egui::{
-    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder
+    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder
 };
 
 const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
@@ -157,56 +157,19 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
             let media_size: f32 = if main { 240.0 } else { 180.0 };
 
-            if let Some(embed) = &post.embed {
+            let embed_enabled = if let Some(opt) = &post.viewer {
+                if let Some(en) = opt.embedding_disabled {
+                    if en {
+                        &None
+                    } else { &post.embed }
+                } else { &post.embed }
+            } else { &post.embed };
+
+            if let Some(embed) = embed_enabled {
                 puffin::profile_scope!("Embed");
                 match embed {
-                    embed::Variant::Images { images } => 'render_images: {
-                        puffin::profile_scope!("Images");
-                        let img_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + media_size);
-                        if !post_contents.is_rect_visible(img_rect) {
-                            puffin::profile_scope!("Image Short-Circuit");
-                            post_contents.allocate_rect(img_rect, egui::Sense::click());
-                            break 'render_images;
-                        }
-                        post_contents.allocate_new_ui(UiBuilder::default().max_rect(img_rect), |container| {
-                            ScrollArea::horizontal().max_width(img_rect.width()).max_height(img_rect.height()).vscroll(false).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).id_salt(&post.cid).show(container, |container| {
-                                container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
-                                    for img in images {
-                                        if !container.is_visible() {
-                                            continue;
-                                        }
-                                        puffin::profile_scope!("Image");
-                                        let img_rect = match img_cache.get_image(&img.thumb) {
-                                            LoadableImage::Unloaded | LoadableImage::Loading => {
-                                                let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { 1.0 };
-                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (media_size * x_multiplier)), egui::Sense::click());
-                                                container.painter().rect_filled(rtn.rect, Rounding::ZERO, Color32::GRAY);
-                                                rtn
-                                            }
-                                            LoadableImage::Loaded(id, ratio) => {
-                                                // kind of jank because sometimes the ratio won't send but it always does when loaded
-                                                let x_multiplier = if let Some(ratio) = &img.aspect_ratio { ratio.width as f32 / ratio.height as f32 } else { ratio.x / ratio.y };
-                                                let rtn = container.allocate_rect(container.cursor().with_max_x(container.cursor().left() + (media_size * x_multiplier)), egui::Sense::click());
-                                                container.painter().image(id, rtn.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                                                rtn
-                                            }
-                                        };
-                                        if img.alt.len() > 0 as usize {
-                                            puffin::profile_scope!("Alt Text");
-                                            let dim_rect = img_rect.rect.with_min_y(img_rect.rect.bottom() - 20.0);
-                                            container.painter().rect_filled(dim_rect, Rounding::ZERO, Color32::from_black_alpha(128));
-
-                                            container.painter().text(dim_rect.left_center() + vec2(10.0, 0.0), Align2::LEFT_CENTER, "ALT", FontId::proportional(12.0), Color32::WHITE);
-                                            let alt_guh = container.allocate_rect(dim_rect, egui::Sense::click());
-                                            alt_guh.on_hover_text(&img.alt);
-                                        }
-                                        if img_rect.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Image(FrontendMediaImageView::new(img.fullsize.clone()))));
-                                        }
-                                    }
-                                });
-                            });
-                        });
+                    embed::Variant::Images { images } => {
+                        view_images(post_contents, Id::new(&post.cid), images, media_size, img_cache, new_view);
                     }
                     embed::Variant::Video(video) => 'render_video: {
                         puffin::profile_scope!("Video");
@@ -263,64 +226,24 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     }
                     embed::Variant::Record { record } => {
                         puffin::profile_scope!("Record");
-                        let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |quote| {
-                            quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
-                                embed.horizontal_wrapped(|embed| match record {
-                                    embed::record::Variant::Record(record) => {
-                                        embed.with_layout(Layout::top_down(egui::Align::Min), |embed| {
-                                            embed.label(format!("{:?} ({})", record.author.display_name, record.author.handle));
-                                            embed.separator();
-                                            match &record.value {
-                                                crate::backend::record::BlueskyApiRecord::Post(post) => {
-                                                    embed.add(egui::Label::new(format!("{:?}", post.text)).selectable(false));
-                                                    embed.add(egui::Label::new(format!("{:?}", post.embed)).selectable(false));
-                                                },
-                                                crate::backend::record::BlueskyApiRecord::Like(_) |
-                                                crate::backend::record::BlueskyApiRecord::Repost(_) => {},
-                                            }
-                                        });
-                                    }
-                                    embed::record::Variant::NotFound(_) => {
-                                        embed.weak("Not Found");
-                                    }
-                                    embed::record::Variant::Blocked(_) => {
-                                        embed.weak("Blocked");
-                                    }
-                                    embed::record::Variant::Detached(_) => {
-                                        embed.weak("Detached Record");
-                                    }
-                                    embed::record::Variant::FeedGenerator(_) => {
-                                        embed.weak("Feed Generator");
-                                    }
-                                    embed::record::Variant::List(_) => {
-                                        embed.weak("List");
-                                    }
-                                    embed::record::Variant::Labeler(_) => {
-                                        embed.weak("Labeler");
-                                    }
-                                    embed::record::Variant::PackView(_) => {
-                                        embed.weak("PackView");
-                                    }
-                                });
-                            });
-                        });
-
-                        if resp.response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                            match record {
-                                embed::record::Variant::Record(record) => {
-                                    new_view.set(FrontendMainView::Thread(FrontendThreadView::new(record.uri.clone())));
-                                },
-                                embed::record::Variant::NotFound(_) |
-                                embed::record::Variant::Blocked(_) |
-                                embed::record::Variant::Detached(_) |
-                                embed::record::Variant::FeedGenerator(_) |
-                                embed::record::Variant::List(_) |
-                                embed::record::Variant::Labeler(_) |
-                                embed::record::Variant::PackView(_) => {},
-                            }
+                        view_record(post_contents, record, media_size, img_cache, new_view);
+                        
+                    }
+                    embed::Variant::RecordWithMedia(aforementioned) => {
+                        match &aforementioned.media {
+                            embed::record_with_media::MediaVariant::Images { images } => {
+                                view_images(post_contents, Id::new(&post.cid), images, media_size, img_cache, new_view);
+                            },
+                            embed::record_with_media::MediaVariant::Video(value) => {
+                                post_contents.weak("Video");
+                                post_contents.weak(format!("{:?}", value));
+                            },
+                            embed::record_with_media::MediaVariant::External(value) => {
+                                post_contents.weak("Link");
+                                post_contents.weak(format!("{:?}", value));
+                            },
                         }
-
-                        post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.style().visuals.text_color()));
+                        view_record(post_contents, &aforementioned.record.record, media_size * 0.8, img_cache, new_view);
                     }
                     _ => {
                         post_contents.weak("Unhandled embed");

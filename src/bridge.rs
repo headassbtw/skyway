@@ -41,6 +41,7 @@ pub enum BackToFrontMsg {
 pub struct Bridge {
     pub frontend_listener: Receiver<BackToFrontMsg>,
     pub backend_commander: Sender<FrontToBackMsg>,
+    pub working_indicator: Arc<tokio::sync::Mutex<bool>>,
 }
 
 impl Bridge {
@@ -48,19 +49,21 @@ impl Bridge {
         let (backend_commander, backend_listener) = std::sync::mpsc::channel();
         let (frontend_commander, frontend_listener) = std::sync::mpsc::channel();
         let ctx_burn = ctx.clone();
+        let working_indicator = Arc::new(tokio::sync::Mutex::new(false));
+        let indicator_burn = working_indicator.clone();
         tokio::task::spawn(async move {
             //let die_fallback_transmittter = backend_responder.clone();
             //panic::set_hook(Box::new( |_| {}));
-            let result = Self::run(backend_listener, frontend_commander, ctx_burn, settings).await;
+            let result = Self::run(backend_listener, frontend_commander, ctx_burn, settings, indicator_burn).await;
             if let Err(result) = result {
                 panic!("Bridge failed! {}", result);
             }
         });
 
-        Self { frontend_listener, backend_commander }
+        Self { frontend_listener, backend_commander, working_indicator }
     }
 
-    async fn run(rx: Receiver<FrontToBackMsg>, tx: Sender<BackToFrontMsg>, ctx: egui::Context, _settings: Arc<Mutex<Settings>>) -> Result<()> {
+    async fn run(rx: Receiver<FrontToBackMsg>, tx: Sender<BackToFrontMsg>, ctx: egui::Context, _settings: Arc<Mutex<Settings>>, working_indicator: Arc<tokio::sync::Mutex<bool>>) -> Result<()> {
         let mut api = ClientBackend::new();
 
         let vault = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt");
@@ -94,9 +97,12 @@ impl Bridge {
             if request.is_err() {
                 continue;
             }
+            let mut working = working_indicator.lock().await;
+            *working = true;
+            ctx.request_repaint();
 
             match request? {
-                FrontToBackMsg::ShutdownMessage => break 'outer,
+                FrontToBackMsg::ShutdownMessage => {drop(working); break 'outer},
                 FrontToBackMsg::LoginRequestStandard(handle, password) => {
                     let login_response = api.login(handle, password).await;
                     match &login_response {
@@ -144,7 +150,7 @@ impl Bridge {
                 }
                 FrontToBackMsg::CreateRecordUnderPostRequest(record, post_mod) => match record {
                     BlueskyApiRecord::Post(_) => {
-                        tx.send(BackToFrontMsg::RecordCreationResponse(Err(BlueskyApiError::ParseError("Tried to use a post-callback record creation call on a standalone post".to_owned()))))?;
+                        tx.send(BackToFrontMsg::RecordCreationResponse(Err(BlueskyApiError::NotImplemented)))?;
                     }
                     BlueskyApiRecord::Like(record) => match api.create_record(BlueskyApiRecord::Like(record)).await {
                         Ok(res) => {
@@ -172,7 +178,7 @@ impl Bridge {
                     },
                 },
                 FrontToBackMsg::DeleteRecordRequest(_rkey, _nsid) => {
-                    tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::ParseError("Not Implemented".to_owned()))))?;
+                    tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::NotImplemented)))?;
                 }
                 FrontToBackMsg::DeleteRecordUnderPostRequest(rkey, nsid, post_mod) => {
                     println!("deleting {}", rkey);
@@ -197,7 +203,7 @@ impl Bridge {
                                 }
                             }
                             _ => {
-                                tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::ParseError("Tried to delete a post under a post, not implemented".to_owned()))))?;
+                                tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::NotImplemented)))?;
                             }
                         },
                         Err(err) => tx.send(BackToFrontMsg::RecordDeletionResponse(Err(err)))?,
@@ -207,6 +213,8 @@ impl Bridge {
             // if we processed anhything, we want the frontend to do it as well, this is the closest to doing that we can get.
             // i COULD probably do something with mutexes but that's janky and my dog is making it very annoying to write code.
             ctx.request_repaint();
+            *working = false;
+            drop(working);
         }
         Ok(())
     }

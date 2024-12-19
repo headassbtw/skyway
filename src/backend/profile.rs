@@ -17,7 +17,7 @@ impl ClientBackend {
 
         let parse: Result<defs::bsky::actor::defs::ProfileViewDetailed, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyApiError::ParseError(format!("{}", err)));
+            return Err(BlueskyApiError::ParseError(err, req));
         }
         let parse = parse.unwrap();
 
@@ -34,7 +34,7 @@ impl ClientBackend {
 
         let parse: Result<FeedCursorPair, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyApiError::ParseError(format!("{}", err)));
+            return Err(BlueskyApiError::ParseError(err, req));
         }
         let parse = parse.unwrap();
 

@@ -35,7 +35,7 @@ impl ClientBackend {
 
         let parse: Result<BlueskyApiGetThreadResponse, serde_json::Error> = serde_json::from_str(&req);
         if let Err(err) = parse {
-            return Err(BlueskyApiError::ParseError(format!("Serialization Failed.\nJSON:{}\nError:{:?}", req, err)));
+            return Err(BlueskyApiError::ParseError(err, req));
         }
 
         return Ok(parse.unwrap());
