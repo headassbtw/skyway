@@ -1,5 +1,5 @@
 use chrono::Utc;
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui, UiBuilder};
 
 use crate::{
     backend::record::{BlueskyApiRecord, BlueskyApiRecordPost},
@@ -15,16 +15,18 @@ const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 pub struct ComposerFlyout {
     pub draft: String,
     pub sending: bool,
+    emoji_picker: bool,
+    emoji_search: String,
     pub reply: Option<ReplyRef>,
 }
 
 impl ComposerFlyout {
     pub fn new() -> Self {
-        Self { draft: String::new(), sending: false, reply: None }
+        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), reply: None }
     }
 
     pub fn with_reply(reply: ReplyRef) -> Self {
-        Self { draft: String::new(), sending: false, reply: Some(reply) }
+        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), reply: Some(reply) }
     }
 }
 
@@ -61,6 +63,17 @@ fn render_mini_profile(ui: &mut Ui, image: &ImageCache, avatar: &Option<String>,
     .response
 }
 
+fn special_char_name(_: char) -> Option<&'static str> {
+    None
+}
+
+fn char_name(chr: char) -> String {
+    special_char_name(chr)
+        .map(|s| s.to_owned())
+        .or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
+        .unwrap_or_else(|| "unknown".to_owned())
+}
+
 impl ClientFrontendFlyoutVariant {
     pub fn post_composer(ui: &mut Ui, data: &mut ComposerFlyout, profile: &Option<ProfileViewDetailed>, img_cache: &ImageCache, backend: &Bridge) {
         let center = ui.cursor().center();
@@ -74,9 +87,55 @@ impl ClientFrontendFlyoutVariant {
             let draft = TextEdit::multiline(&mut data.draft);
             draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Write Here").frame(false).font(TextStyle::Body).show(ui);
 
+            if data.emoji_picker {
+                ui.allocate_ui(vec2(ui.cursor().width(), 500.0), |ui| {
+                    let draft = TextEdit::singleline(&mut data.emoji_search);
+                    draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Search...").frame(false).font(TextStyle::Body).show(ui);
+                    let guh = ui.fonts(|f| {
+                        f.lock()
+                            .fonts
+                            .font(&egui::FontId::new(10.0, egui::FontFamily::Monospace)) // size is arbitrary for getting the characters
+                            .characters()
+                            .iter()
+                            .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control() && !chr.is_alphanumeric() && (**chr as u16) > 0x25FF)
+                            .map(|(chr, _)| {
+                                (
+                                    *chr,
+                                    char_name(*chr),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    });
+                    egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+                        ui.horizontal_wrapped(|ui| {
+                            for chr in guh {
+                                if data.emoji_search.len() > 0 && !chr.1.to_lowercase().contains(&data.emoji_search.to_lowercase()) {
+                                    continue;
+                                }
+                                //another fucking custom button impl!
+                                let sense = ui.allocate_response(vec2(30.0, 30.0), egui::Sense::click());
+                                let col = if sense.hovered() { BSKY_BLUE } else { Color32::BLACK };
+                                ui.painter().text(sense.rect.center() - vec2(0.0, 5.0), Align2::CENTER_CENTER, format!("{}", chr.0), FontId::monospace(24.0), col);
+
+                                if sense.on_hover_text(char_name(chr.0)).clicked() {
+                                    data.draft.push(chr.0);
+                                }
+                            }    
+                        });
+                        ui.allocate_space(vec2(ui.cursor().width(), 0.0));
+                    });
+                    
+
+                });
+            }
+
             ui.with_layout(Layout::left_to_right(egui::Align::Min), |buttons| {
                 circle_button(buttons, "", 20.0, 15.0, None);
                 circle_button(buttons, "", 20.0, 15.0, None);
+                if circle_button(buttons, "\u{E234}", 20.0, 15.0, None).on_hover_text("Emoji picker").clicked() {
+                    data.emoji_picker = !data.emoji_picker;
+                }
+                
                 let send_button_rect = buttons.cursor().with_min_x(right_limit - 90.0).with_max_x(right_limit).with_max_y(buttons.cursor().top() + 30.0);
                 let send_button = buttons.add_enabled_ui(data.draft.len() > 0, |buttons| buttons.allocate_rect(send_button_rect, egui::Sense::click())).inner.on_hover_cursor(egui::CursorIcon::PointingHand);
                 buttons.painter().rect_filled(send_button_rect, Rounding::ZERO, BSKY_BLUE.gamma_multiply(if data.draft.len() > 0 && data.draft.len() <= 300 { 1.0 } else { 0.5 }));

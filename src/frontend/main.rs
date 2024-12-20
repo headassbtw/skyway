@@ -165,6 +165,9 @@ impl ClientFrontend {
         fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(3, "Segoe Emojis".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(4, "Segoe Symbols".to_owned());
 
+        fonts.families.get_mut(&egui::FontFamily::Monospace).unwrap().insert(0, "Segoe Emojis".to_owned());
+        //fonts.families.get_mut(&egui::FontFamily::Monospace).unwrap().insert(1, "Segoe Symbols".to_owned());
+
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(1, "Droid Sans JPN".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(2, "Segoe Emojis".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(3, "Segoe Symbols".to_owned());
@@ -241,10 +244,24 @@ impl ClientFrontend {
             BlueskyApiError::BadRequest(err) =>     format!("Bad Request\n{}\n{}", err.error, err.message),
             BlueskyApiError::Unauthorized(err) =>   format!("Unauthorized\n{}\n{}", err.error, err.message),
             BlueskyApiError::NetworkError(err) => {
-                let http = if let Some(code) = err.status() {
-                    &format!("{}", code.as_str())
-                } else { "Unknown HTTP code" };
-                format!("Network Error\n{}\n{}", http, err)
+                let cause = if err.is_status() {
+                    if let Some(code) = err.status() {
+                        &format!("{}", code.as_str())
+                    } else { "Unknown HTTP code" }
+                } else if err.is_timeout() {
+                    "Request timed out"
+                } else if err.is_request() {
+                    "Invalid request"
+                } else if err.is_connect() {
+                    "Failed to connect"
+                } else if err.is_body() {
+                    "Invalid request/response"
+                } else if err.is_decode() {
+                    "Failure decoding response"
+                }  else {
+                    "Unknown cause"
+                };
+                format!("Network Error\n{}\n\n{}\n\nI have no clue what causes this. It's always a fluke, try again and it will likely work. If it doesn't, then it's actually an issue.", cause, err)
             },
             BlueskyApiError::ParseError(err, jason) => {
                 let t = match err.classify() {
@@ -284,7 +301,7 @@ impl ClientFrontendFlyout {
 
     /// Should everything under the flyout be interactable?
     /// ALSO RUNS ANIMAITON LOGIC!
-    /// paramds: should render, should let underneath interact, state
+    /// params: should render, should let underneath interact, state
     pub fn get_animation_state(&mut self) -> (bool, bool, f32) {
         if self.main.is_none() {
             return (false, true, 0.0);
@@ -377,32 +394,24 @@ impl eframe::App for ClientFrontend {
                         },
                     };
                 }
-                crate::bridge::BackToFrontMsg::TimelineResponse(tl) => {
-                    match tl {
-                        Ok(tl) => {
-                            //TODO: FIX
-                            println!("Recieved {} posts", tl.feed.len());
-                            if let Some(page) = self.view_stack.top() {
-                                match page {
-                                    FrontendMainView::Timeline(ref mut data) => {
-                                        data.timeline_cursor = tl.cursor;
-                                        for post in tl.feed {
-                                            data.timeline.push(post);
-                                        }
-                                    }
-                                    FrontendMainView::Login() | FrontendMainView::Thread(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => {
-                                        println!("fix this :)");
-                                        todo!();
+                crate::bridge::BackToFrontMsg::TimelineResponse(tl) => match tl {
+                    Ok(tl) => {
+                        //TODO: FIX
+                        if let Some(page) = self.view_stack.top() {
+                            match page {
+                                FrontendMainView::Timeline(ref mut data) => {
+                                    data.timeline_cursor = tl.cursor;
+                                    for post in tl.feed {
+                                        data.timeline.push(post);
                                     }
                                 }
+                                _ => println!("fix this :)"),
                             }
                         }
-                        Err(err) => self.error_modal("Failed to get timeline", err),
                     }
+                    Err(err) => self.error_modal("Failed to get timeline", err),
                 }
-                crate::bridge::BackToFrontMsg::KeyringFailure(reason) => {
-                    self.info_modal("OS Keyring Failure", &reason);
-                }
+                crate::bridge::BackToFrontMsg::KeyringFailure(reason) => self.info_modal("OS Keyring Failure", &reason),
                 crate::bridge::BackToFrontMsg::RecordCreationResponse(data) => match data {
                     Ok(_) => {
                         if let Some(flyout) = &mut self.flyout.main {
@@ -420,9 +429,6 @@ impl eframe::App for ClientFrontend {
                 crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
                     if let Some(page) = self.view_stack.top() {
                         match page {
-                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Thread(_) | FrontendMainView::Media(_) => {
-                                println!("bridge target missed");
-                            }
                             FrontendMainView::Profile(data) => {
                                 if data.id_cmp == id {
                                     match profile {
@@ -433,7 +439,8 @@ impl eframe::App for ClientFrontend {
                                         Err(err) => self.error_modal("Failed to get profile", err),
                                     }
                                 }
-                            }
+                            },
+                            _ => println!("bridge target missed"),
                         }
                     }
                 }
@@ -445,7 +452,6 @@ impl eframe::App for ClientFrontend {
                 crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
                     if let Some(page) = self.view_stack.top() {
                         match page {
-                            FrontendMainView::Login() | FrontendMainView::Timeline(_) | FrontendMainView::Profile(_) | FrontendMainView::Media(_) => { println!("fix this, use a callback for thread responses pleeeeeeeeeeease"); },
                             FrontendMainView::Thread(data) => {
                                 if data.id_cmp == uri {
                                     match res {
@@ -456,7 +462,8 @@ impl eframe::App for ClientFrontend {
                                         Err(err) => self.error_modal("Failed to get thread", err),
                                     }
                                 }
-                            }
+                            },
+                            _ => println!("fix this, use a callback for thread responses pleeeeeeeeeeease"),
                         }
                     }
                 }
