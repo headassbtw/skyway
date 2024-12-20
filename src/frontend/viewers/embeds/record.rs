@@ -62,13 +62,6 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                             }
 
                         });
-                        
-                        
-
-                        
-                        
-
-                        
 
                         match &record.value {
                             crate::backend::record::BlueskyApiRecord::Post(post) => {

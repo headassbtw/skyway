@@ -17,7 +17,7 @@ use crate::{
 
 use chrono::Utc;
 use egui::{
-    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, Ui, UiBuilder
+    pos2, text::{LayoutJob, LayoutSection, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, Ui, UiBuilder
 };
 
 pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
@@ -95,41 +95,44 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
             });
             if post.record.text.len() > (0 as usize) {
                 puffin::profile_scope!("Text");
-                let mut job = LayoutJob::default();
-                job.wrap = TextWrapping::wrap_at_width(post_contents.cursor().width());
                 let font_id = FontId::proportional(if main { 20.0 } else { 14.0 });
-                job.text = post.record.text.clone();
 
-                /* if let Some(facets) = &post.record.facets {
-                    let mut prev: usize = 0;
-                    facets.sort_by(|a,b| {
-                        a.index.byte_start.cmp(&b.index.byte_start)
+                // This kinda sucks but it works!
+                if let Some(facets) = &post.record.facets {
+                    post_contents.horizontal_wrapped(|ui| {
+                        ui.spacing_mut().item_spacing.x = 2.0;
+                        ui.style_mut().visuals.override_text_color = Some(ui.visuals().noninteractive().fg_stroke.color);
+
+                        let mut prev: usize = 0;
+                        for (idx, facet) in facets.iter().enumerate() {
+
+                            if prev < facet.index.byte_start {
+                                ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start-1]).font(font_id.clone())));
+                            }
+
+                            if ui.link(egui::RichText::new(&post.record.text[facet.index.byte_start..facet.index.byte_end]).color(BSKY_BLUE).font(font_id.clone())).clicked() {
+                                for feature in &facet.features {
+                                    match feature {
+                                        crate::defs::bsky::richtext::Feature::Mention(mention) => { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(mention.did.clone()))); },
+                                        crate::defs::bsky::richtext::Feature::Link(link) => { open_in_browser(&link.uri); },
+                                        crate::defs::bsky::richtext::Feature::Tag(_) => {},
+                                    }
+                                }
+                            }
+
+                            if idx == facets.len() - 1 { // last facet, write the rest of the text...
+                                if &post.record.text.len() >= &facet.index.byte_end { // ...if applicable
+                                    ui.add(egui::Label::new(egui::RichText::new(&post.record.text[facet.index.byte_end..post.record.text.len()]).font(font_id.clone())));
+                                }
+                            }
+
+                            prev = facet.index.byte_end;
+                        }
                     });
-                    for facet in facets {
-                        let section = LayoutSection {
-                            leading_space: 0.0,
-                            byte_range: prev..(facet.index.byte_start),
-                            format: TextFormat::simple(FontId::proportional(14.0), post_contents.style().visuals.noninteractive().fg_stroke.color),
-                        };
-                        job.sections.push(section);
-
-                        let section = LayoutSection {
-                            leading_space: 1.0,
-                            byte_range: facet.index.byte_start..facet.index.byte_end,
-                            format: TextFormat::simple(FontId::proportional(14.0), BSKY_BLUE),
-                        };
-                        job.sections.push(section);
-                        prev = facet.index.byte_end;
-                    }
-                } else */
-                {
-                    job.append(&post.record.text, 0.0, TextFormat::simple(font_id, post_contents.style().visuals.noninteractive().fg_stroke.color));
+                } else {
+                    post_contents.add(egui::Label::new(egui::RichText::new(&post.record.text).color(post_contents.visuals().noninteractive().fg_stroke.color).font(font_id)));
                 }
 
-                let galley = post_contents.fonts(|f| f.layout_job(job));
-                if post_contents.add(egui::Label::new(galley).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                    view_thread = true;
-                }
             }
 
             let media_size: f32 = if main { 240.0 } else { 180.0 };

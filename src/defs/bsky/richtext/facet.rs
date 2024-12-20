@@ -2,12 +2,18 @@ use serde::{self, Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Mention(serde_json::Value);
+pub struct Mention {
+	pub did: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Link(serde_json::Value);
+pub struct Link {
+	pub uri: String,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Tag(serde_json::Value);
+pub struct Tag {
+	pub tag: String,
+}
