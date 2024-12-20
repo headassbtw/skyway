@@ -4,7 +4,7 @@ use super::MainViewProposition;
 use crate::bridge::FrontToBackMsg;
 use crate::defs::bsky::feed::defs::ThreadPostVariant;
 use crate::frontend::main::ClientFrontendFlyout;
-use crate::frontend::pages::BSKY_BLUE;
+use crate::BSKY_BLUE;
 use crate::frontend::viewers;
 use crate::widgets::spinner::SegoeBootSpinner;
 use crate::{bridge::Bridge, image::ImageCache};

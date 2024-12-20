@@ -4,11 +4,9 @@ use profile::FrontendProfileView;
 use thread::FrontendThreadView;
 use timeline::FrontendTimelineView;
 
-use crate::{bridge::Bridge, image::ImageCache};
+use crate::{BSKY_BLUE, bridge::Bridge, image::ImageCache};
 
 use super::main::{ClientFrontendFlyout, ClientFrontendModal};
-
-const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub mod landing;
 pub mod media;

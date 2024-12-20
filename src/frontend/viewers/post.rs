@@ -1,42 +1,24 @@
 use std::sync::{Arc, Mutex};
 
 use crate::{
+    BSKY_BLUE,
     backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{
-            media::{image::FrontendMediaImageView, video::FrontendMediaVideoView, FrontendMediaViewVariant},
+            media::{video::FrontendMediaVideoView, FrontendMediaViewVariant},
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        }, viewers::embeds::{images::view_images, record::view_record},
+        }, viewers::{embeds::{images::view_images, record::view_record}, offset_time},
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}
 };
 
-use chrono::{DateTime, Datelike, Timelike, Utc};
+use chrono::Utc;
 use egui::{
-    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder
+    pos2, text::{LayoutJob, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, Ui, UiBuilder
 };
-
-const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
-
-fn offset_time(time: DateTime<Utc>) -> String {
-    puffin::profile_function!();
-    let offset = Utc::now() - time;
-    if offset.num_days() >= 7 {
-        //TODO: OS formatter
-        return format!("{}:{} {}/{}/{}", time.hour(), time.minute(), time.month(), time.day(), time.year());
-    } else if offset.num_hours() >= 24 {
-        return format!("{}d", offset.num_days());
-    } else if offset.num_minutes() >= 60 {
-        return format!("{}h", offset.num_hours());
-    } else if offset.num_seconds() >= 60 {
-        return format!("{}m", offset.num_minutes());
-    } else {
-        return format!("{}s", offset.num_seconds());
-    }
-}
 
 pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
@@ -87,13 +69,8 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 let guh_fr = name.painter().layout_no_wrap(offset_time(post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
                 name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
-                let display_name = if let Some(display_name) = &post.author.display_name {
-                    if display_name.len() > (0 as usize) {
-                        // WHAT'S THE FUCKING POINT, BLUESKY???? IF YOU HAVE AN OPTIONAL FIELD, USE THAT FACT AND DON'T JUST RETURN BLANK
-                        Some(name.add(egui::Label::new(egui::RichText::new(display_name).size(20.0).color(name.style().visuals.text_color())).selectable(false).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand))
-                    } else {
-                        None
-                    }
+                let display_name = if let Some(display_name) = &post.author.display_name && display_name.len() > 0{
+                    Some(name.add(egui::Label::new(egui::RichText::new(display_name).size(20.0).color(name.style().visuals.text_color())).selectable(false).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand))
                 } else {
                     None
                 };
@@ -213,14 +190,17 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                             if external.description.len() > 0 {
                                 link.add(egui::Label::new(&external.description).selectable(false));
                             }
-                            let rect = link.allocate_space(vec2(link.cursor().width(), 2.0)).1;
-                            link.painter().rect_filled(rect, Rounding::ZERO, link.visuals().weak_text_color());
+                            let rtn = link.allocate_space(vec2(2.0, 2.0)).1;
+                            
                             link.add(egui::Label::new(&external.uri).selectable(false));
-                        }).response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                            rtn
+                        });
 
-                        post_contents.painter().rect(resp.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.visuals().weak_text_color()));
+                        post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.visuals().weak_text_color()));
 
-                        if resp.clicked() {
+                        post_contents.painter().rect_filled(resp.inner.with_max_x(resp.response.rect.max.x), Rounding::ZERO, post_contents.visuals().weak_text_color());
+
+                        if resp.response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                             open_in_browser(&external.uri);
                         }
                     }

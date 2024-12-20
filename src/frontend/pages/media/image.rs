@@ -1,7 +1,7 @@
 use egui::{emath::TSTransform, pos2, vec2, Color32, Rect};
 
 use crate::{
-    frontend::pages::BSKY_BLUE,
+    BSKY_BLUE,
     image::{ImageCache, LoadableImage},
     widgets::spinner::SegoeBootSpinner,
 };

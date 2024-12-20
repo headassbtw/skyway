@@ -1,6 +1,7 @@
 use egui::{vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
 
 use crate::{
+    BSKY_BLUE,
     bridge::Bridge,
     defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant},
     frontend::{
@@ -14,8 +15,6 @@ use crate::{
 };
 
 use super::MainViewProposition;
-
-const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub struct FrontendTimelineView {
     pub timeline: Vec<FeedViewPost>,

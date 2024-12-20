@@ -7,7 +7,7 @@ use crate::bridge::FrontToBackMsg;
 use crate::defs::bsky::actor::defs::ProfileViewDetailed;
 use crate::defs::bsky::feed::defs::{FeedCursorPair, FeedViewPost};
 use crate::frontend::main::ClientFrontendFlyout;
-use crate::frontend::pages::BSKY_BLUE;
+use crate::BSKY_BLUE;
 use crate::frontend::viewers::feed_post::feed_post_viewer;
 use crate::image::LoadableImage;
 use crate::widgets::spinner::SegoeBootSpinner;

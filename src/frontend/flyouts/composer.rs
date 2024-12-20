@@ -2,6 +2,7 @@ use chrono::Utc;
 use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui, UiBuilder};
 
 use crate::{
+    BSKY_BLUE,
     backend::record::{BlueskyApiRecord, BlueskyApiRecordPost},
     bridge::Bridge,
     defs::bsky::{actor::defs::ProfileViewDetailed, feed::ReplyRef},
@@ -9,8 +10,6 @@ use crate::{
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
 };
-
-const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 pub struct ComposerFlyout {
     pub draft: String,

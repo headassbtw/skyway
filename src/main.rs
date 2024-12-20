@@ -1,3 +1,5 @@
+#![feature(let_chains)]
+
 pub mod backend;
 pub mod bridge;
 pub mod frontend;
@@ -7,6 +9,8 @@ pub mod defs;
 pub mod settings;
 
 use crate::frontend::main::ClientFrontend;
+
+const BSKY_BLUE: egui::Color32 = egui::Color32::from_rgb(32, 139, 254);
 
 fn open_in_browser(url: &str) {
     #[cfg(target_os = "linux")]

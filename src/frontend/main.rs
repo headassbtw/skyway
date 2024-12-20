@@ -5,10 +5,8 @@ use crate::{
     backend::{
         main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
         BlueskyApiError,
-    }, bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, settings::Settings, widgets::spinner::SegoeBootSpinner
+    }, bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, settings::Settings, widgets::spinner::SegoeBootSpinner, BSKY_BLUE
 };
-
-const BSKY_BLUE: Color32 = Color32::from_rgb(32, 139, 254);
 
 use super::{
     flyouts::composer::ComposerFlyout,
@@ -101,8 +99,8 @@ impl ClientFrontend {
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Light, |style| {
             style.visuals.widgets.noninteractive.fg_stroke.color = Color32::BLACK;
-            style.visuals.window_fill = Color32::from_gray(221);
-            style.visuals.panel_fill = Color32::from_gray(221);
+            style.visuals.window_fill = Color32::from_gray(242);
+            style.visuals.panel_fill = Color32::from_gray(242);
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Dark, |style| {
             style.visuals.extreme_bg_color = Color32::from_gray(37);
