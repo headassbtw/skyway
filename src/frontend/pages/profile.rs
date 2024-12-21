@@ -214,7 +214,7 @@ impl FrontendProfileView {
                     ui.allocate_space(vec2(ui.ctx().screen_rect().width() - 240.0, 0.0));
                     ui.painter().rect_filled(Rect::from_two_pos(pos2(pos.x, pos.y-60.0), pos2(pos.x + 500.0, pos.y + 10.0)), Rounding::ZERO, ui.style().visuals.panel_fill);
                     ui.painter().text(pos, Align2::LEFT_BOTTOM, "Posts", title_fontid, BSKY_BLUE);
-
+                    ui.style_mut().always_scroll_the_only_direction = false;
                     ScrollArea::vertical().max_width(ui.ctx().screen_rect().width() - offset_left).show(ui, |ui| {
                         if let Some(posts) = &self.posts {
                             let posts = posts.lock().unwrap();
