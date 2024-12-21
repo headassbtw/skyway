@@ -22,6 +22,8 @@ Most notably the parts that need work are:
 
 ## Building
 
+Use rust nightly.
+
 This project relies on six Microsoft fonts and other various free fonts for Japanese/etc.
 Microsoft's licensing doesn't allow distribution of them, so I won't put them in the source tree.
 You will need to provide the Microsoft fonts from your own Windows 8 or newer install, and copy them into the root directory (next to `src`):
