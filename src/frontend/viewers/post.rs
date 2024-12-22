@@ -92,7 +92,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 name.painter().circle_filled(dot_pos.clone(), 2.0, Color32::DARK_GRAY);
                 name.painter().galley(dot_pos + vec2(name.spacing().item_spacing.x, time_galley.rect.height() * -0.6), time_galley, Color32::DARK_GRAY);  
 
-                if profile_click.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
+                if profile_click.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() || pfp_response.clicked() {
                     view_profile = true;
                 }
                 
