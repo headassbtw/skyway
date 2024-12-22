@@ -30,16 +30,14 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                                 name.painter().text(pfp_rect.center(), Align2::CENTER_CENTER, "", FontId::new(50.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
                             }
 
-                            
-                            let time_galley = name.painter().layout_no_wrap(offset_time(record.indexed_at), FontId::new(12.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
-                            let seglight = FontId::new(15.0, egui::FontFamily::Name("Segoe Light".into()));
+                            let seglight = egui::FontFamily::Name("Segoe Light".into());
+                            let time_galley = name.painter().layout_no_wrap(offset_time(record.indexed_at), FontId::new(12.0, seglight.clone()), Color32::DARK_GRAY);
                             name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
-                            // just gonna manually lay out the text here. RichText-ing just for size is kind of messy.
-                            // this is different from how i do it elsewhere, but i really don't care.
+                            // just gonna manually lay out the text here. It's a bit messy but so is the alternative
                             if let Some(dn) = &record.author.display_name && dn.len() > 0 {
                                 let dn_galley = name.painter().layout(dn.to_string(), FontId::proportional(15.0), name.style().visuals.text_color(), content_rect.width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
-                                let handle_galley = name.painter().layout(record.author.handle.clone(), seglight, name.style().visuals.weak_text_color(), content_rect.width() - (30.0 + dn_galley.rect.width() + time_galley.rect.width() + (name.spacing().item_spacing.x * 3.0)));
+                                let handle_galley = name.painter().layout(record.author.handle.clone(), FontId::new(15.0, seglight.clone()), name.style().visuals.weak_text_color(), content_rect.width() - (30.0 + dn_galley.rect.width() + time_galley.rect.width() + (name.spacing().item_spacing.x * 3.0)));
 
                                 // allocations to increase the sub-ui width
                                 name.allocate_space(vec2(dn_galley.rect.width() + handle_galley.rect.width() + time_galley.rect.width() + name.spacing().item_spacing.x * 3.0, 0.0));
@@ -50,7 +48,7 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                                 name.painter().galley(pfp_rect.max + vec2((name.spacing().item_spacing.x * 2.0) + dn_galley.rect.width(), -27.0), handle_galley, name.style().visuals.weak_text_color());
                                 name.painter().galley(pfp_rect.max + vec2(name.spacing().item_spacing.x, -27.0), dn_galley, name.style().visuals.text_color());
                             } else {
-                                let handle_galley = name.painter().layout(record.author.handle.clone(), seglight, name.style().visuals.text_color(), content_rect.width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
+                                let handle_galley = name.painter().layout(record.author.handle.clone(), FontId::proportional(15.0), name.style().visuals.text_color(), content_rect.width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
 
                                 // allocations to increase the sub-ui width
                                 name.allocate_space(vec2(handle_galley.rect.width() + time_galley.rect.width() + name.spacing().item_spacing.x * 2.0, 0.0));

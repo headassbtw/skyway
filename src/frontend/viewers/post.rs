@@ -1,4 +1,4 @@
-use std::sync::{Arc, Mutex};
+use std::{cmp::max, sync::{Arc, Mutex}};
 
 use crate::{
     BSKY_BLUE,
@@ -66,32 +66,36 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 if !name.is_visible() {
                     break 'render_name;
                 }
-                let guh_fr = name.painter().layout_no_wrap(offset_time(post.record.created_at), FontId::new(16.0, egui::FontFamily::Name("Segoe Light".into())), Color32::DARK_GRAY);
+                let seglight = egui::FontFamily::Name("Segoe Light".into());
+                let time_galley = name.painter().layout_no_wrap(offset_time(post.indexed_at), FontId::new(16.0, seglight.clone()), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
-                name.set_width(the_width_you_care_about - (20.0 + guh_fr.mesh_bounds.width()));
-                let display_name = if let Some(display_name) = &post.author.display_name && display_name.len() > 0{
-                    Some(name.add(egui::Label::new(egui::RichText::new(display_name).size(20.0).color(name.style().visuals.text_color())).selectable(false).sense(egui::Sense::click())).on_hover_cursor(egui::CursorIcon::PointingHand))
+
+                let profile_click = if let Some(dn) = &post.author.display_name && dn.len() > 0 {
+                    let dn_galley = name.painter().layout(dn.to_string(), FontId::proportional(20.0), name.style().visuals.text_color(), name.cursor().width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
+                    let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::new(20.0, seglight.clone()), name.style().visuals.weak_text_color(), name.cursor().width() - (30.0 + dn_galley.rect.width() + time_galley.rect.width() + (name.spacing().item_spacing.x * 3.0)));
+
+                    let rtn = name.allocate_response(vec2(dn_galley.rect.width() + handle_galley.rect.width() + name.spacing().item_spacing.x, f32::max(handle_galley.rect.height(), dn_galley.rect.height())), egui::Sense::click());
+                    
+                    name.painter().galley(rtn.rect.min + vec2(name.spacing().item_spacing.x + dn_galley.rect.width(), 0.0), handle_galley, name.style().visuals.weak_text_color());
+                    name.painter().galley(rtn.rect.min, dn_galley, name.style().visuals.text_color());
+                    rtn
                 } else {
-                    None
+                    let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::proportional(15.0), name.style().visuals.text_color(), name.cursor().width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
+
+                    let rtn = name.allocate_response(handle_galley.rect.size(), egui::Sense::click());
+                    
+                    name.painter().galley(rtn.rect.min, handle_galley, name.style().visuals.text_color());
+                    rtn
                 };
-                let name_res = if display_name.is_none() { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).size(20.0)).selectable(false).sense(egui::Sense::click())) } else { name.add(egui::Label::new(egui::RichText::new(&post.author.handle).weak().font(FontId::new(20.0, egui::FontFamily::Name("Segoe Light".into()))).size(20.0)).selectable(false).sense(egui::Sense::click())) }.on_hover_cursor(egui::CursorIcon::PointingHand);
 
-                let click_response = if let Some(dn) = display_name {
-                    if dn.hovered() {
-                        dn.clicked()
-                    } else {
-                        name_res.clicked()
-                    }
-                } else {
-                    name_res.clicked()
-                } || pfp_response.clicked();
+                let dot_pos = profile_click.rect.max + vec2(name.spacing().item_spacing.x, profile_click.rect.height() * -0.3);
+                name.painter().circle_filled(dot_pos.clone(), 2.0, Color32::DARK_GRAY);
+                name.painter().galley(dot_pos + vec2(name.spacing().item_spacing.x, time_galley.rect.height() * -0.6), time_galley, Color32::DARK_GRAY);  
 
-                if click_response {
+                if profile_click.on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
                     view_profile = true;
                 }
-
-                name.painter().galley(pos2(name_res.rect.right() + 20.0, name_res.rect.right_center().y - guh_fr.mesh_bounds.height() / 2.0), guh_fr, Color32::GREEN);
-                name.painter().circle_filled(pos2(name_res.rect.right() + 10.0, name_res.rect.right_center().y + 5.0), 2.0, Color32::DARK_GRAY);
+                
             });
             if post.record.text.len() > (0 as usize) {
                 puffin::profile_scope!("Text");
