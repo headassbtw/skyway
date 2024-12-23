@@ -138,12 +138,6 @@ impl ClientFrontend {
             font.tweak.baseline_offset_factor = 0.4;
             font
         });
-
-        fonts.font_data.insert("Droid Sans JPN".to_owned(), {
-            let mut font = egui::FontData::from_static(include_bytes!("../../DroidSansJapanese.ttf"));
-            font.tweak.y_offset_factor = 0.075;
-            font
-        });
         fonts.font_data.insert("Malgun".to_owned(), {
             let mut font = egui::FontData::from_static(include_bytes!("../../malgun.ttf"));
             font.tweak.y_offset_factor = 0.075;
@@ -158,15 +152,13 @@ impl ClientFrontend {
         fonts.families.insert(egui::FontFamily::Name("Segoe Light".into()), vec!["Segoe Light".to_owned()]);
 
         fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(0, "Segoe UI".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(1, "Droid Sans JPN".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(2, "Malgun".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(3, "Segoe Emojis".to_owned());
-        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(4, "Segoe Symbols".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(1, "Malgun".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(2, "Segoe Emojis".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Proportional).unwrap().insert(3, "Segoe Symbols".to_owned());
 
         fonts.families.get_mut(&egui::FontFamily::Monospace).unwrap().insert(0, "Segoe Emojis".to_owned());
-        //fonts.families.get_mut(&egui::FontFamily::Monospace).unwrap().insert(1, "Segoe Symbols".to_owned());
 
-        fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(1, "Droid Sans JPN".to_owned());
+        fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(1, "Malgun".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(2, "Segoe Emojis".to_owned());
         fonts.families.get_mut(&egui::FontFamily::Name("Segoe Light".into())).unwrap().insert(3, "Segoe Symbols".to_owned());
 

@@ -13,8 +13,9 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
             embed.horizontal_wrapped(|embed| match record {
                 embed::record::Variant::Record(record) => {
                     embed.with_layout(Layout::top_down(egui::Align::Min), |embed| {
-                        embed.with_layout(Layout::left_to_right(egui::Align::Min), |name| {
+                        embed.with_layout(Layout::left_to_right(egui::Align::Min), |name| 'render_name: {
                             let pfp_rect = name.allocate_space(vec2(30.0, 30.0)).1;
+                            if !name.is_rect_visible(pfp_rect) { break 'render_name; }
                             if let Some(avatar) = &record.author.avatar {
                                 match img_cache.get_image(avatar) {
                                     LoadableImage::Unloaded | LoadableImage::Loading => {

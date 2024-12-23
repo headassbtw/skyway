@@ -16,6 +16,9 @@ pub fn view_external(ui: &mut egui::Ui, external: &external::View, _media_size: 
         (rtn, a, b, c)
     });
 
+	// we've already done layout, don't bother rendering what we can't see
+	if !ui.is_rect_visible(resp.response.rect) { return resp.response; }
+
 	if let Some(thumb) = &external.thumb {
 		match img_cache.get_image(thumb) {
 		    crate::image::LoadableImage::Loaded(texture_id, vec2) => {

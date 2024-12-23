@@ -14,9 +14,7 @@ pub fn view_images(ui: &mut egui::Ui, id_salt: egui::Id, images: &Vec<ViewImage>
         ScrollArea::horizontal().max_width(img_rect.width()).max_height(img_rect.height()).vscroll(false).id_salt(id_salt).scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::VisibleWhenNeeded).show(container, |container| {
             container.with_layout(Layout::left_to_right(egui::Align::Min), |container| {
                 for img in images {
-                    if !container.is_visible() {
-                        continue;
-                    }
+                    
                     puffin::profile_scope!("Image");
                     let img_rect = match img_cache.get_image(&img.thumb) {
                         LoadableImage::Unloaded | LoadableImage::Loading => {
@@ -33,6 +31,10 @@ pub fn view_images(ui: &mut egui::Ui, id_salt: egui::Id, images: &Vec<ViewImage>
                             rtn
                         }
                     };
+
+                    // probably redundant but i love culling things
+                    if !container.is_rect_visible(img_rect.rect) { continue; }
+
                     if img.alt.len() > 0 as usize {
                         puffin::profile_scope!("Alt Text");
                         let dim_rect = img_rect.rect.with_min_y(img_rect.rect.bottom() - 20.0);

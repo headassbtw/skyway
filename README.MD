@@ -24,7 +24,7 @@ Most notably the parts that need work are:
 
 Use rust nightly.
 
-This project relies on six Microsoft fonts and other various free fonts for Japanese/etc.
+This project relies on six Microsoft fonts.
 Microsoft's licensing doesn't allow distribution of them, so I won't put them in the source tree.
 You will need to provide the Microsoft fonts from your own Windows 8 or newer install, and copy them into the root directory (next to `src`):
 - **Segoe UI** `C:/Windows/Fonts/segoeui.ttf`
@@ -32,6 +32,4 @@ You will need to provide the Microsoft fonts from your own Windows 8 or newer in
 - **Segoe Symbols**: `C:/Windows/Fonts/seguisym.ttf`
 - **Segoe Emojis**: `C:/Windows/Fonts/seguiemj.ttf`
 - **Segoe Boot**: `C:/Windows/Boot/Fonts/segoe_slboot.ttf`
-- **Malgun Gothic**: `C:/Windows/Fonts/malgun.ttf` (You should be able to substitute this for a Korean font of your choice, but it looks in place (enough) with segoe)
-Along with a Japanese font of your choice, I'm using Droid Sans because I know about it
-- **Droid Sans Japanese**: `DroidSansJapanese.ttf`
+- **Malgun Gothic**: `C:/Windows/Fonts/malgun.ttf` (You should be able to substitute this for a font of your choice with asian glyphs, but malgun works better)

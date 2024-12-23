@@ -19,6 +19,42 @@ use egui::{
     pos2, text::{LayoutJob, LayoutSection, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, Ui, UiBuilder
 };
 
+fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyph: &str, count: usize, color: Option<Color32>) -> Response {
+    //action_buttons.style().interact(&like_button).fg_stroke.color
+    let highlight = if ui.style().visuals.dark_mode { Color32::WHITE } else { Color32::BLACK };
+
+    let (id, rtn) = ui.allocate_space(vec2(size * 2.5 + ui.spacing().item_spacing.x, size));
+
+    let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
+
+    let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
+
+    // ICON
+    ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
+    ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
+
+    // TEXT
+    let (galley, guh) = if count > 0 {
+        let galley = ui.painter().layout(format!("{}", count), FontId::proportional(size / 2.0), color, size * 2.0);
+        let width = galley.rect.width() + ui.spacing().item_spacing.x / 3.0;
+        (Some(galley),
+        width)
+    } else { (None, 0.0) };
+
+    // like from alan wake
+    let clicker = ui.interact(rtn.with_max_x(rtn.min.x + size + guh), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click());
+
+    let anim = ui.ctx().animate_bool(Id::new(format!("action_button_{:?}_hover", id)), clicker.hovered());
+    let opacity = (anim * 16.0) as u8;
+    ui.painter().rect_filled(clicker.rect.expand(4.0 * anim), Rounding::ZERO, if ui.style().visuals.dark_mode { Color32::from_white_alpha(opacity) } else { Color32::from_black_alpha(opacity * 2) });
+
+    if let Some(galley) = galley {
+        ui.painter().galley(pos2(rtn.min.x + size + ui.spacing().item_spacing.x / 3.0, circle_center.y - (galley.rect.height() / 2.0 + 2.0)), galley, color);
+    }
+
+    clicker
+}
+
 pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
@@ -62,9 +98,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
             post_contents.set_max_width(the_width_you_care_about);
             post_contents.allocate_new_ui(UiBuilder::new().layout(Layout::left_to_right(egui::Align::TOP)), |name| 'render_name: {
                 puffin::profile_scope!("Name");
-                if !name.is_visible() {
-                    break 'render_name;
-                }
+                // the culling here is really late and that annoys me but it's better than nothing
                 let seglight = egui::FontFamily::Name("Segoe Light".into());
                 let time_galley = name.painter().layout_no_wrap(offset_time(post.indexed_at), FontId::new(16.0, seglight.clone()), Color32::DARK_GRAY);
                 name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
@@ -74,7 +108,8 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::new(20.0, seglight.clone()), name.style().visuals.weak_text_color(), name.cursor().width() - (30.0 + dn_galley.rect.width() + time_galley.rect.width() + (name.spacing().item_spacing.x * 3.0)));
 
                     let rtn = name.allocate_response(vec2(dn_galley.rect.width() + handle_galley.rect.width() + name.spacing().item_spacing.x, f32::max(handle_galley.rect.height(), dn_galley.rect.height())), egui::Sense::click());
-                    
+                    if !name.is_rect_visible(rtn.rect) { break 'render_name; }
+
                     name.painter().galley(rtn.rect.min + vec2(name.spacing().item_spacing.x + dn_galley.rect.width(), 0.0), handle_galley, name.style().visuals.weak_text_color());
                     name.painter().galley(rtn.rect.min, dn_galley, name.style().visuals.text_color());
                     rtn
@@ -82,6 +117,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::proportional(15.0), name.style().visuals.text_color(), name.cursor().width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
 
                     let rtn = name.allocate_response(handle_galley.rect.size(), egui::Sense::click());
+                    if !name.is_rect_visible(rtn.rect) { break 'render_name; }
                     
                     name.painter().galley(rtn.rect.min, handle_galley, name.style().visuals.text_color());
                     rtn
@@ -236,52 +272,39 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     break 'render_action_buttons;
                 }
 
-                action_buttons.style_mut().spacing.item_spacing.x = 26.0 * 3.0;
+                action_buttons.style_mut().spacing.item_spacing.x = 30.0;
 
                 let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
-                action_buttons.add_enabled_ui(reply_enabled, |action_buttons| {
-                    let button = circle_button(action_buttons, "\u{E206}", 20.0, 15.0, None);
-                    if button.clicked() {
-                        let reply = ReplyRef {
-                            root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { StrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
-                            parent: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
-                        };
-                        flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
-                    }
-                    if let Some(reply_count) = &post.reply_count {
-                        if reply_count > &0u32 {
-                            action_buttons.painter().text(button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", reply_count), FontId::proportional(15.0), action_buttons.style().interact(&button).fg_stroke.color);
-                        }
-                    }
-                });
-
-                let rt_override = if post.viewer.as_ref().unwrap().repost.is_some() { Some(Color32::from_rgb(92, 239, 170)) } else { None };
-                let repost_button = circle_button(action_buttons, "\u{E207}", 20.0, 15.0, rt_override);
-                if let Some(repost_count) = &post.repost_count {
-                    if repost_count > &0u32 {
-                        action_buttons.painter().text(repost_button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", repost_count), FontId::proportional(15.0), if let Some(col) = rt_override { col } else { action_buttons.style().interact(&repost_button).fg_stroke.color });
-                    }
+                let reply_count = post.reply_count.unwrap_or(0);
+                let reply_button = action_button(action_buttons, reply_enabled, false, 30.0, "\u{E206}", reply_count as usize, None);
+                if reply_button.clicked() {
+                    let reply = ReplyRef {
+                        root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { StrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
+                        parent: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
+                    };
+                    flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                 }
+
+                let repost_count = post.repost_count.unwrap_or(0) + post.quote_count.unwrap_or(0);
+                let self_reposted = post.viewer.as_ref().unwrap().repost.is_some();
+                let repost_button = action_button(action_buttons, true, self_reposted, 30.0, "\u{E207}", repost_count as usize, Some(Color32::from_rgb(92, 239, 170)));
+
                 click_context_menu::click_context_menu(repost_button, |guh| {
                     guh.spacing_mut().item_spacing.y = 0.0;
-                    if guh.add(Button::new(if rt_override.is_some() { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
-                        repost = Some(rt_override.is_none());
+                    if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
+                        repost = Some(self_reposted);
                     }
                     if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
                 });
-
-                let like_override = if post.viewer.as_ref().unwrap().like.is_some() { Some(Color32::from_rgb(236, 72, 153)) } else { None };
-                let like_button = circle_button(action_buttons, "\u{E209}", 20.0, 15.0, like_override);
-                if like_button.clicked() {
-                    like = Some(like_override.is_none());
-                }
-                if let Some(like_count) = &post.like_count {
-                    if like_count > &0u32 {
-                        action_buttons.painter().text(like_button.rect.right_center() + vec2(12.0, -2.0), Align2::LEFT_CENTER, format!("{}", like_count), FontId::proportional(15.0), if let Some(col) = like_override { col } else { action_buttons.style().interact(&like_button).fg_stroke.color });
-                    }
+                
+                let like_count = post.like_count.unwrap_or(0);
+                let self_liked = post.viewer.as_ref().unwrap().like.is_some();
+                if action_button(action_buttons, true, self_liked, 30.0, "\u{E209}", like_count as usize, Some(Color32::from_rgb(236, 72, 153))).clicked() {
+                    like = Some(!self_liked);
                 }
 
-                click_context_menu::click_context_menu(circle_button(action_buttons, "\u{E0C2}", 15.0, 15.0, None), |guh| {
+
+                click_context_menu::click_context_menu(action_button(action_buttons, true, false, 30.0, "\u{E0C2}", 0, None), |guh| {
                     guh.spacing_mut().item_spacing.y = 0.0;
                     if guh.add(Button::new("Open in browser").min_size(vec2(280.0, 40.0))).clicked() {
                         let id = post.uri.split("/").last().unwrap();
@@ -294,6 +317,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     if guh.add_enabled(false, Button::new("Copy link").min_size(vec2(280.0, 40.0))).clicked() {
                     }
                 });
+
+                // take up the remainder of the space, so that any thing to the right of the post is clickable
+                //action_buttons.allocate_space(vec2(action_buttons.cursor().width(), 30.0));
             });
         }) //post contents container
     }); // main container including pfp
