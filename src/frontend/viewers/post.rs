@@ -2,7 +2,6 @@ use std::{cmp::max, sync::{Arc, Mutex}};
 
 use crate::{
     backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
-        circle_button,
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{
@@ -16,16 +15,16 @@ use crate::{
 
 use chrono::Utc;
 use egui::{
-    pos2, text::{LayoutJob, LayoutSection, TextWrapping}, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, TextFormat, Ui, UiBuilder
+    pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder
 };
 
 fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyph: &str, count: usize, color: Option<Color32>) -> Response {
-    //action_buttons.style().interact(&like_button).fg_stroke.color
     let highlight = if ui.style().visuals.dark_mode { Color32::WHITE } else { Color32::BLACK };
 
     let (id, rtn) = ui.allocate_space(vec2(size * 2.5 + ui.spacing().item_spacing.x, size));
 
     let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
+    let color = if !enabled { ui.visuals().weak_text_color() } else { color };
 
     // TEXT
     let (galley, text_width) = if count > 0 {
@@ -36,7 +35,10 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     } else { (None, 0.0) };
 
     // like from alan wake
-    let clicker = ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click());
+    let clicker = ui.add_enabled_ui(enabled, |ui| {
+        ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click())
+    }).inner;
+    
 
     let anim = ui.ctx().animate_bool(Id::new(format!("action_button_{:?}_hover", id)), clicker.hovered());
     let opacity = (anim * 16.0) as u8;
