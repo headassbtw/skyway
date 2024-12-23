@@ -27,14 +27,8 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
 
     let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
 
-    let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
-
-    // ICON
-    ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
-    ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
-
     // TEXT
-    let (galley, guh) = if count > 0 {
+    let (galley, text_width) = if count > 0 {
         let galley = ui.painter().layout(format!("{}", count), FontId::proportional(size / 2.0), color, size * 2.0);
         let width = galley.rect.width() + ui.spacing().item_spacing.x / 3.0;
         (Some(galley),
@@ -42,12 +36,18 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     } else { (None, 0.0) };
 
     // like from alan wake
-    let clicker = ui.interact(rtn.with_max_x(rtn.min.x + size + guh), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click());
+    let clicker = ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click());
 
     let anim = ui.ctx().animate_bool(Id::new(format!("action_button_{:?}_hover", id)), clicker.hovered());
     let opacity = (anim * 16.0) as u8;
     ui.painter().rect_filled(clicker.rect.expand(4.0 * anim), Rounding::ZERO, if ui.style().visuals.dark_mode { Color32::from_white_alpha(opacity) } else { Color32::from_black_alpha(opacity * 2) });
 
+    // ICON
+    let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
+    ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
+    ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
+
+    // TEXT (again)
     if let Some(galley) = galley {
         ui.painter().galley(pos2(rtn.min.x + size + ui.spacing().item_spacing.x / 3.0, circle_center.y - (galley.rect.height() / 2.0 + 2.0)), galley, color);
     }
