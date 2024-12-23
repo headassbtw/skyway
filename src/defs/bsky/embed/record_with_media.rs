@@ -7,7 +7,7 @@ pub enum MediaVariant {
 	#[serde(rename = "app.bsky.embed.images#view")]
 	Images { images: Vec<crate::defs::bsky::embed::images::ViewImage> },
 	#[serde(rename = "app.bsky.embed.video#view")]
-	Video(serde_json::Value),
+	Video(crate::defs::bsky::embed::video::View),
 	#[serde(rename = "app.bsky.embed.external#view")]
 	External { external: crate::defs::bsky::embed::external::View },
 }

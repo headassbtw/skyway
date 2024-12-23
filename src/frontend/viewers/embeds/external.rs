@@ -3,6 +3,7 @@ use egui::{pos2, vec2, Color32, Rect, Rounding, Stroke, UiBuilder};
 use crate::{defs::bsky::embed::external, image::ImageCache, open_in_browser};
 
 pub fn view_external(ui: &mut egui::Ui, external: &external::View, _media_size: f32, img_cache: &ImageCache) -> egui::Response {
+	puffin::profile_function!();
 	let resp = ui.allocate_new_ui(UiBuilder::default().max_rect(ui.cursor().shrink(5.0)), |link| {
 
 		let a = egui::Label::new(&external.title).selectable(false).layout_in_ui(link);

@@ -4,7 +4,7 @@ use crate::{defs::bsky::embed::images::ViewImage, frontend::pages::{media::{imag
 
 
 pub fn view_images(ui: &mut egui::Ui, id_salt: egui::Id, images: &Vec<ViewImage>, media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
-	puffin::profile_scope!("Images");
+	puffin::profile_function!();
     let img_rect = ui.cursor().with_max_y(ui.cursor().top() + media_size);
     if !ui.is_rect_visible(img_rect) {
         puffin::profile_scope!("Image Short-Circuit");

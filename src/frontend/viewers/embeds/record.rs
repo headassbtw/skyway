@@ -5,6 +5,7 @@ use crate::{defs::bsky::embed, frontend::{pages::{thread::FrontendThreadView, Fr
 use super::images::view_images;
 
 pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record::Variant, media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
+    puffin::profile_function!();
     let content_rect = ui.cursor().shrink(5.0);
 	let resp = ui.allocate_new_ui(UiBuilder::default().max_rect(content_rect), |quote| {
         quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
@@ -107,13 +108,7 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
             embed::record::Variant::Record(record) => {
                 new_view.set(FrontendMainView::Thread(FrontendThreadView::new(record.uri.clone())));
             },
-            embed::record::Variant::NotFound(_) |
-            embed::record::Variant::Blocked(_) |
-            embed::record::Variant::Detached(_) |
-            embed::record::Variant::FeedGenerator(_) |
-            embed::record::Variant::List(_) |
-            embed::record::Variant::Labeler(_) |
-            embed::record::Variant::PackView(_) => {},
+            _ => {},
         }
     }
 

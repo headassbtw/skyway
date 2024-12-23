@@ -9,7 +9,7 @@ use crate::{
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record}, offset_time},
+        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record, video::view_video}, offset_time},
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}, BSKY_BLUE
 };
 
@@ -197,58 +197,22 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     embed::Variant::Images { images } => {
                         view_images(post_contents, Id::new(&post.cid), images, media_size, img_cache, new_view);
                     }
-                    embed::Variant::Video(video) => 'render_video: {
-                        puffin::profile_scope!("Video");
-                        let video_rect = post_contents.cursor().with_max_y(post_contents.cursor().top() + media_size);
-                        if !post_contents.is_rect_visible(video_rect) {
-                            puffin::profile_scope!("Video Short-Circuit");
-                            post_contents.allocate_rect(video_rect, egui::Sense::click());
-                            break 'render_video;
-                        }
-                        let ratio = if let Some(real_ratio) = &video.aspect_ratio { real_ratio.width as f32 / real_ratio.height as f32 } else { 16.0 / 9.0 };
-
-                        let video_rect = video_rect.with_max_x(video_rect.left() + media_size * ratio);
-
-                        let tex = if let Some(thumb) = &video.thumbnail {
-                            match img_cache.get_image(thumb) {
-                                LoadableImage::Unloaded | LoadableImage::Loading => None,
-                                LoadableImage::Loaded(texture_id, _) => Some(texture_id),
-                            }
-                        } else {
-                            None
-                        };
-
-                        if let Some(id) = tex {
-                            post_contents.painter().image(id, video_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                        } else {
-                            post_contents.painter().rect_filled(video_rect, Rounding::ZERO, Color32::BLACK);
-                        }
-                        post_contents.allocate_rect(video_rect, egui::Sense::click());
-                        post_contents.painter().rect_filled(video_rect, Rounding::ZERO, Color32::from_white_alpha(64));
-                        post_contents.painter().circle_filled(video_rect.center(), 15.0, Color32::from_black_alpha(128));
-                        post_contents.painter().text(video_rect.center(), Align2::CENTER_CENTER, "\u{25B6}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-
-                        if post_contents.allocate_rect(video_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                            new_view.set(FrontendMainView::Media(FrontendMediaViewVariant::Video(FrontendMediaVideoView {})));
-                            println!("image clicked!");
-                        }
+                    embed::Variant::Video(video) => {
+                        view_video(post_contents, video, media_size, img_cache, new_view);
                     }
                     embed::Variant::External { external } => {
                         view_external(post_contents, external, media_size, img_cache);
                     }
                     embed::Variant::Record { record } => {
-                        puffin::profile_scope!("Record");
                         view_record(post_contents, record, media_size, img_cache, new_view);
-                        
                     }
                     embed::Variant::RecordWithMedia(aforementioned) => {
                         match &aforementioned.media {
                             embed::record_with_media::MediaVariant::Images { images } => {
                                 view_images(post_contents, Id::new(&post.cid), images, media_size, img_cache, new_view);
                             },
-                            embed::record_with_media::MediaVariant::Video(value) => {
-                                post_contents.weak("Video");
-                                post_contents.weak(format!("{:?}", value));
+                            embed::record_with_media::MediaVariant::Video(video) => {
+                                view_video(post_contents, video, media_size, img_cache, new_view);
                             },
                             embed::record_with_media::MediaVariant::External { external} => {
                                 view_external(post_contents, external, media_size, img_cache);
@@ -293,7 +257,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 click_context_menu::click_context_menu(repost_button, |guh| {
                     guh.spacing_mut().item_spacing.y = 0.0;
                     if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
-                        repost = Some(self_reposted);
+                        repost = Some(!self_reposted);
                     }
                     if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
                 });
