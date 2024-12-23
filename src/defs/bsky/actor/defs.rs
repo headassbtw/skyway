@@ -3,7 +3,7 @@ use serde::{self, Deserialize, Serialize};
 
 use crate::defs;
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileViewBasic {
     pub did: String,
@@ -89,7 +89,7 @@ impl ProfileViewDetailed {
     }
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileAssociated {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -104,7 +104,7 @@ pub struct ProfileAssociated {
     pub chat: Option<ProfileAssociatedChat>,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "lowercase")]
 pub enum ProfileAssociatedChatAllowIncoming {
     All,
@@ -112,13 +112,13 @@ pub enum ProfileAssociatedChatAllowIncoming {
     Following,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileAssociatedChat {
     pub allow_incoming: ProfileAssociatedChatAllowIncoming,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -139,7 +139,7 @@ pub struct ViewerState {
     pub known_followers: Option<KnownFollowers>,
 }
 
-#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct KnownFollowers {
     pub count: usize,

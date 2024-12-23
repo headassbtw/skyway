@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use crate::defs::bsky::graph::defs::{ListView, StarterPackViewBasic};
 use crate::backend::record::BlueskyApiRecord;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
 pub enum Variant {
@@ -26,7 +26,7 @@ pub enum Variant {
     PackView(StarterPackViewBasic),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
     pub uri: String,
@@ -49,14 +49,14 @@ pub struct Record {
     pub indexed_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NotFound {
     pub uri: String,
     pub not_found: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Blocked {
     pub uri: String,
@@ -64,7 +64,7 @@ pub struct Blocked {
     pub author: crate::defs::bsky::feed::defs::BlockedAuthor,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Detached {
     pub uri: String,

@@ -18,7 +18,7 @@ pub struct ReplyRef {
     pub parent: StrongRef,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
 	pub text: String,

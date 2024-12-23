@@ -72,6 +72,7 @@ impl ClientBackend {
             refresh_token: String::new(),
             access_token_expiry: Utc::now(),
             client: reqwest::Client::new(),
+            post_cache: HashMap::new(),
         }
     }
 

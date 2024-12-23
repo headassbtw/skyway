@@ -5,7 +5,7 @@ use serde::{self, Deserialize, Serialize};
 
 use crate::defs::bsky::actor::defs::ProfileViewBasic;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct PostView {
     pub uri: String,
@@ -33,7 +33,7 @@ pub struct PostView {
     pub threadgate: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -126,7 +126,7 @@ pub struct ThreadViewPost {
     pub post: Arc<Mutex<PostView>>,
 
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub parent: Option<Arc<ThreadPostVariant>>,
+    pub parent: Option<Arc<Mutex<ThreadPostVariant>>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub replies: Option<Vec<ThreadPostVariant>>,
 }
@@ -146,7 +146,7 @@ pub struct BlockedPost {
     pub author: BlockedAuthor,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockedAuthor {
     pub did: String,

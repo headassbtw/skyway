@@ -6,7 +6,7 @@ pub mod record;
 pub mod record_with_media;
 pub mod video;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
 pub enum Variant {
@@ -33,7 +33,7 @@ pub enum Variant {
     RecordWithMediaRaw(record_with_media::RecordWithMediaRaw),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct AspectRatio {
     pub width: u32,

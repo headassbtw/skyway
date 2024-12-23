@@ -1,4 +1,4 @@
-use std::{cmp::max, sync::{Arc, Mutex}};
+use std::{sync::{Arc, Mutex}};
 
 use crate::{
     backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
@@ -179,7 +179,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         view_thread = true;
                     }
                 }
-
             }
 
             let media_size: f32 = if main { 240.0 } else { 180.0 };

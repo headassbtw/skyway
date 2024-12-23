@@ -1,5 +1,3 @@
-use std::borrow::BorrowMut;
-
 use super::{BlueskyApiError, ClientBackend};
 
 use crate::defs::bsky::feed::defs::FeedCursorPair;
@@ -20,14 +18,9 @@ impl ClientBackend {
         let fin: Result<FeedCursorPair, serde_json::Error> = serde_json::from_str(&text);
 
         match fin {
-            Ok(fin) => {
-                // /let rtn = FeedCursorPair { cursor: fin.cursor, feed: Vec::new() };
-                for post in &fin.feed {
-                    let mut post = post.post.lock().unwrap();
-                    let post = post.borrow_mut();
-                    if let Some(fuck) = post.record.facets.as_mut() {
-                        fuck.sort_by(|a,b| { a.index.byte_start.cmp(&b.index.byte_start) });
-                    }
+            Ok(mut fin) => {
+                for post in fin.feed.iter_mut() {
+                    post.post = self.deduplicate_post(&mut post.post);
                 };
                 return Ok(fin)
             },

@@ -1,6 +1,6 @@
 use serde::{self, Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewImage {
     pub thumb: String,
