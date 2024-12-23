@@ -214,7 +214,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                 post_contents.weak(format!("{:?}", value));
                             },
                             embed::record_with_media::MediaVariant::External { external} => {
-                                view_external(post_contents, Id::new(&post.cid), external, media_size, img_cache);
+                                view_external(post_contents, external, media_size, img_cache);
                             },
                         }
                         view_record(post_contents, &aforementioned.record.record, media_size * 0.8, img_cache, new_view);
