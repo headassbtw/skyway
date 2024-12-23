@@ -9,7 +9,7 @@ pub enum MediaVariant {
 	#[serde(rename = "app.bsky.embed.video#view")]
 	Video(serde_json::Value),
 	#[serde(rename = "app.bsky.embed.external#view")]
-	External(serde_json::Value),
+	External { external: crate::defs::bsky::embed::external::View },
 }
 
 #[derive(Debug, Serialize, Deserialize)]

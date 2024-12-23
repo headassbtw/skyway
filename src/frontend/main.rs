@@ -572,7 +572,8 @@ impl eframe::App for ClientFrontend {
                     ui.painter().rect_filled(content_rect, Rounding::ZERO, Color32::WHITE);
                     ui.painter().vline(content_rect.left(), 0.0..=content_rect.bottom(), Stroke::new(2.0, BSKY_BLUE));
 
-                    let content = UiBuilder::new().max_rect(content_rect.with_min_y(100.0).shrink2(vec2(30.0, 10.0))).ui_stack_info(UiStackInfo::new(egui::UiKind::Popup));
+                    let internals_rect = content_rect.with_min_y(100.0).shrink2(vec2(30.0, 10.0));
+                    let content = UiBuilder::new().max_rect(internals_rect).ui_stack_info(UiStackInfo::new(egui::UiKind::Popup));
                     let content = if anim_state.1 { content.disabled() } else { content };
 
                     ui.painter().rect_filled(content_rect.with_max_y(content_rect.top() + 100.0), Rounding::ZERO, BSKY_BLUE);

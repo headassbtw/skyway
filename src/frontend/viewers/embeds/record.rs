@@ -5,7 +5,7 @@ use crate::{defs::bsky::embed, frontend::{pages::{thread::FrontendThreadView, Fr
 use super::images::view_images;
 
 pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record::Variant, media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
-    let content_rect = ui.cursor().shrink(8.0);
+    let content_rect = ui.cursor().shrink(5.0);
 	let resp = ui.allocate_new_ui(UiBuilder::default().max_rect(content_rect), |quote| {
         quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
             embed.spacing_mut().item_spacing.x = 8.0;
@@ -73,6 +73,7 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                             },
                             _ => {},
                         }
+                        embed.allocate_space(vec2(0.0, 0.0));
                     });
                 }
                 embed::record::Variant::NotFound(_) => {

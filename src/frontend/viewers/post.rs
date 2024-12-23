@@ -1,7 +1,6 @@
 use std::{cmp::max, sync::{Arc, Mutex}};
 
 use crate::{
-    BSKY_BLUE,
     backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
         circle_button,
         flyouts::composer::ComposerFlyout,
@@ -11,8 +10,8 @@ use crate::{
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        }, viewers::{embeds::{images::view_images, record::view_record}, offset_time},
-    }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}
+        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record}, offset_time},
+    }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}, BSKY_BLUE
 };
 
 use chrono::Utc;
@@ -111,7 +110,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         for (idx, facet) in facets.iter().enumerate() {
 
                             if prev < facet.index.byte_start {
-                                ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start-1]).font(font_id.clone())));
+                                if ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start-1]).font(font_id.clone()))).clicked() {
+                                    view_thread = true;
+                                }
                             }
 
                             if ui.link(egui::RichText::new(&post.record.text[facet.index.byte_start..facet.index.byte_end]).color(BSKY_BLUE).font(font_id.clone())).clicked() {
@@ -126,7 +127,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
                             if idx == facets.len() - 1 { // last facet, write the rest of the text...
                                 if &post.record.text.len() >= &facet.index.byte_end { // ...if applicable
-                                    ui.add(egui::Label::new(egui::RichText::new(&post.record.text[facet.index.byte_end..post.record.text.len()]).font(font_id.clone())));
+                                    if ui.add(egui::Label::new(egui::RichText::new(&post.record.text[facet.index.byte_end..post.record.text.len()]).font(font_id.clone()))).clicked() {
+                                        view_thread = true;
+                                    }
                                 }
                             }
 
@@ -134,7 +137,9 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         }
                     });
                 } else {
-                    post_contents.add(egui::Label::new(egui::RichText::new(&post.record.text).color(post_contents.visuals().noninteractive().fg_stroke.color).font(font_id)));
+                    if post_contents.add(egui::Label::new(egui::RichText::new(&post.record.text).color(post_contents.visuals().noninteractive().fg_stroke.color).font(font_id))).clicked() {
+                        view_thread = true;
+                    }
                 }
 
             }
@@ -192,24 +197,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                         }
                     }
                     embed::Variant::External { external } => {
-                        let resp = post_contents.allocate_new_ui(UiBuilder::default().max_rect(post_contents.cursor().shrink(8.0)), |link| {
-                            link.add(egui::Label::new(&external.title).selectable(false));
-                            if external.description.len() > 0 {
-                                link.add(egui::Label::new(&external.description).selectable(false));
-                            }
-                            let rtn = link.allocate_space(vec2(2.0, 2.0)).1;
-                            
-                            link.add(egui::Label::new(&external.uri).selectable(false));
-                            rtn
-                        });
-
-                        post_contents.painter().rect(resp.response.rect.expand(4.0), Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, post_contents.visuals().weak_text_color()));
-
-                        post_contents.painter().rect_filled(resp.inner.with_max_x(resp.response.rect.max.x), Rounding::ZERO, post_contents.visuals().weak_text_color());
-
-                        if resp.response.interact(egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand).clicked() {
-                            open_in_browser(&external.uri);
-                        }
+                        view_external(post_contents, external, media_size, img_cache);
                     }
                     embed::Variant::Record { record } => {
                         puffin::profile_scope!("Record");
@@ -225,9 +213,8 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                 post_contents.weak("Video");
                                 post_contents.weak(format!("{:?}", value));
                             },
-                            embed::record_with_media::MediaVariant::External(value) => {
-                                post_contents.weak("Link");
-                                post_contents.weak(format!("{:?}", value));
+                            embed::record_with_media::MediaVariant::External { external} => {
+                                view_external(post_contents, Id::new(&post.cid), external, media_size, img_cache);
                             },
                         }
                         view_record(post_contents, &aforementioned.record.record, media_size * 0.8, img_cache, new_view);

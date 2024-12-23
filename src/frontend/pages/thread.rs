@@ -35,8 +35,8 @@ impl FrontendThreadView {
 
                 if first {
                     if let Some(replies) = &thread.replies {
-                        let (_, line_rect) = ui.allocate_space(vec2(rtn.rect.width(), ui.style().visuals.widgets.inactive.fg_stroke.width * 4.0));
-                        ui.painter().rect_filled(line_rect, Rounding::ZERO, ui.style().visuals.widgets.inactive.fg_stroke.color);
+                        let (_, line_rect) = ui.allocate_space(vec2(rtn.rect.width(), ui.style().visuals.widgets.inactive.fg_stroke.width * 2.0));
+                        ui.painter().rect_filled(line_rect.with_max_x(ui.cursor().right()), Rounding::ZERO, ui.style().visuals.widgets.inactive.fg_stroke.color);
                         for reply in replies {
                             match reply {
                                 ThreadPostVariant::NotFound(_) | ThreadPostVariant::Blocked(_) => {}
@@ -55,9 +55,11 @@ impl FrontendThreadView {
 
     pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
+
         if let Some(thread) = &self.data {
             ScrollArea::vertical().hscroll(false).show(ui, |scroll| {
                 Self::render_recursive(scroll, &thread, true, backend, image, flyout, new_view);
+                scroll.allocate_space(vec2(scroll.cursor().width(), 0.0));
             });
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
