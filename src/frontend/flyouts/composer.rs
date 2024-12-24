@@ -87,7 +87,7 @@ impl ClientFrontendFlyoutVariant {
             draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Write Here").frame(false).font(TextStyle::Body).show(ui);
 
             if data.emoji_picker {
-                let emojis_height = f32::min(500.0, ui.cursor().height() - 100.0);
+                let emojis_height = f32::min(500.0, ui.ctx().screen_rect().bottom() - (ui.cursor().top() + 100.0));
                 ui.allocate_ui(vec2(ui.cursor().width(), emojis_height), |ui| {
                     let draft = TextEdit::singleline(&mut data.emoji_search);
                     draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Search...").frame(false).font(TextStyle::Body).show(ui);
@@ -130,8 +130,11 @@ impl ClientFrontendFlyoutVariant {
             }
 
             ui.with_layout(Layout::left_to_right(egui::Align::Min), |buttons| {
-                circle_button(buttons, "", 20.0, 15.0, None);
-                circle_button(buttons, "", 20.0, 15.0, None);
+                buttons.add_enabled_ui(false, |buttons| {
+                    circle_button(buttons, "", 20.0, 15.0, None);
+                    circle_button(buttons, "", 20.0, 15.0, None);    
+                });
+                
                 if circle_button(buttons, "\u{E234}", 20.0, 15.0, None).on_hover_text("Emoji picker").clicked() {
                     data.emoji_picker = !data.emoji_picker;
                 }
