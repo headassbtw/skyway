@@ -187,6 +187,7 @@ impl ClientFrontendFlyoutVariant {
                     } else {
                         backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordRequest(record)).unwrap();
                     }
+                    data.sending = true;
                 }
             });
         });
