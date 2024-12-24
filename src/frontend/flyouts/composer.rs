@@ -1,5 +1,8 @@
+use std::path::PathBuf;
+
 use chrono::Utc;
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, ImageSource, Layout, Rect, Rounding, Style, TextEdit, TextStyle, Ui, UiBuilder, Visuals};
+use rfd::FileDialog;
 
 use crate::{
     BSKY_BLUE,
@@ -16,16 +19,17 @@ pub struct ComposerFlyout {
     pub sending: bool,
     emoji_picker: bool,
     emoji_search: String,
+    images: Vec<PathBuf>,
     pub reply: Option<ReplyRef>,
 }
 
 impl ComposerFlyout {
     pub fn new() -> Self {
-        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), reply: None }
+        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), images: Vec::new(), reply: None }
     }
 
     pub fn with_reply(reply: ReplyRef) -> Self {
-        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), reply: Some(reply) }
+        Self { draft: String::new(), sending: false, emoji_picker: false, emoji_search: String::new(), images: Vec::new(), reply: Some(reply) }
     }
 }
 
@@ -76,6 +80,7 @@ fn char_name(chr: char) -> String {
 impl ClientFrontendFlyoutVariant {
     pub fn post_composer(ui: &mut Ui, data: &mut ComposerFlyout, profile: &Option<ProfileViewDetailed>, img_cache: &ImageCache, backend: &Bridge) {
         let center = ui.cursor().center();
+        *ui.visuals_mut() = Visuals::light();
         ui.add_enabled_ui(!data.sending, |ui| {
             let right_limit = ui.cursor().right();
             ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
@@ -85,6 +90,17 @@ impl ClientFrontendFlyoutVariant {
 
             let draft = TextEdit::multiline(&mut data.draft);
             draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Write Here").frame(false).font(TextStyle::Body).show(ui);
+
+            if data.images.len() > 0 {
+                egui::ScrollArea::horizontal().show(ui, |ui| {
+                    ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                        for path in &data.images {
+                            let (_, rect) = ui.allocate_space(vec2(160.0, 90.0));
+                            ui.painter().rect_filled(rect, Rounding::ZERO, BSKY_BLUE);
+                        }
+                    });
+                });
+            }
 
             if data.emoji_picker {
                 let emojis_height = f32::min(500.0, ui.ctx().screen_rect().bottom() - (ui.cursor().top() + 100.0));
@@ -130,12 +146,28 @@ impl ClientFrontendFlyoutVariant {
             }
 
             ui.with_layout(Layout::left_to_right(egui::Align::Min), |buttons| {
+                buttons.add_enabled_ui(data.images.len() < 4, |buttons| 'picker_logic: {
+                    if circle_button(buttons, "\u{E114}", 15.0, 15.0).on_hover_text("Upload Image").clicked() {
+                        let files = FileDialog::new()
+                        .add_filter("image", &["png", "jpg", "jpeg", "webp"])
+                        .add_filter("other", &["*"])
+                        //.set_directory("/")
+                        .pick_files();
+                        if files.is_none() { break 'picker_logic; }
+                        let files = files.unwrap();
+
+                        let pre_count = data.images.len().clone(); // this needs to be cached, else it will live update
+                        for (idx, file) in files.into_iter().enumerate() {
+                            if idx > (3 - pre_count) { break 'picker_logic; }
+                            data.images.push(file);
+                        }
+                    }
+                });
                 buttons.add_enabled_ui(false, |buttons| {
-                    circle_button(buttons, "", 20.0, 15.0, None);
-                    circle_button(buttons, "", 20.0, 15.0, None);    
+                    circle_button(buttons, "", 20.0, 15.0);
                 });
                 
-                if circle_button(buttons, "\u{E234}", 20.0, 15.0, None).on_hover_text("Emoji picker").clicked() {
+                if circle_button(buttons, "\u{E234}", 20.0, 15.0).on_hover_text("Emoji Picker").clicked() {
                     data.emoji_picker = !data.emoji_picker;
                 }
                 
@@ -148,8 +180,13 @@ impl ClientFrontendFlyoutVariant {
                 if send_button.clicked() {
                     let mut languages: Vec<String> = Vec::new();
                     languages.push("en".to_owned());
+
                     let record = BlueskyApiRecord::Post(BlueskyApiRecordPost { text: data.draft.clone(), created_at: Utc::now(), facets: None, reply: data.reply.clone(), embed: None, langs: Some(languages), labels: None, tags: None });
-                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordRequest(record)).unwrap();
+                    if data.images.len() > 0 {
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordWithMediaRequest(record, data.images.clone())).unwrap();
+                    } else {
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordRequest(record)).unwrap();
+                    }
                 }
             });
         });

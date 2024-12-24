@@ -6,7 +6,7 @@ pub mod modals;
 pub mod pages;
 pub mod viewers;
 
-fn circle_button(ui: &mut egui::Ui, icon: &str, icon_size: f32, radius: f32, color_override: Option<Color32>) -> egui::Response {
+fn circle_button(ui: &mut egui::Ui, icon: &str, icon_size: f32, radius: f32) -> egui::Response {
     puffin::profile_function!();
 
     let info = {
@@ -17,18 +17,10 @@ fn circle_button(ui: &mut egui::Ui, icon: &str, icon_size: f32, radius: f32, col
     if !ui.is_rect_visible(info.rect) {
         return info;
     }
-    let color = {
-        puffin::profile_scope!("Style Fetch");
-        let col = ui.style().interact(&info);
-        if let Some(over) = color_override {
-            over.gamma_multiply(col.fg_stroke.color.r() as f32 / 255.0)
-        } else {
-            col.fg_stroke.color
-        }
-    };
+    let color = ui.style().interact(&info).fg_stroke.color;
     {
         puffin::profile_scope!("Circle");
-        ui.painter().circle(info.rect.center(), radius, Color32::TRANSPARENT, Stroke::new(2.0, color));
+        ui.painter().circle(info.rect.center(), radius - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
     }
     {
         puffin::profile_scope!("Icon");

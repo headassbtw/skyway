@@ -3,13 +3,13 @@ use crate::{backend::{
     record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
     thread::BlueskyApiGetThreadResponse,
     BlueskyApiError, ClientBackend,
-}, defs::bsky::feed::defs::FeedViewPost, settings::Settings};
+}, defs::{self, bsky::{embed, feed::defs::FeedViewPost}, Blob}, settings::Settings};
 use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, PostView}};
 use anyhow::Result;
-use std::sync::{
+use std::{path::PathBuf, sync::{
     mpsc::{Receiver, Sender},
     Arc, Mutex,
-};
+}};
 
 pub enum FrontToBackMsg {
     ShutdownMessage,
@@ -22,6 +22,7 @@ pub enum FrontToBackMsg {
     GetAuthorFeedRequest(String, String, Arc<Mutex<FeedCursorPair>>),
 
     CreateRecordRequest(BlueskyApiRecord),
+    CreateRecordWithMediaRequest(BlueskyApiRecord, Vec<PathBuf>),
     CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<PostView>>),
 
     DeleteRecordRequest(String, String),
@@ -146,6 +147,37 @@ impl Bridge {
                     }
                 },
                 FrontToBackMsg::CreateRecordRequest(record) => {
+                    tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
+                }
+                // TODO: FIX THIS LATER lmao, it doesn't support alt text n whatnot
+                FrontToBackMsg::CreateRecordWithMediaRequest(record, images) => 'give_up: {
+                    let mut blobs: Vec<Blob> = Vec::new();
+                    for image in images {
+                        match api.upload_blob(image).await {
+                            Ok(res) => blobs.push(res),
+                            Err(err) => {
+                                tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?;
+                                break 'give_up;
+                            },
+                        }
+                    }
+                    let mut record = record;
+                    match record {
+                        BlueskyApiRecord::Post(ref mut post) => {
+                            post.embed = Some(embed::Variant::ImagesRaw { images: {
+                                let mut vec = Vec::new();
+                                for blob in blobs {
+                                    vec.push(defs::bsky::embed::images::Image {
+                                        image: blob,
+                                        alt: String::new(),
+                                        aspect_ratio: None,
+                                    });
+                                }
+                                vec
+                            } }.into())
+                        },
+                        _ => todo!(),
+                    }
                     tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
                 }
                 FrontToBackMsg::CreateRecordUnderPostRequest(record, post_mod) => match record {

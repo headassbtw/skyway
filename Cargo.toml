@@ -24,4 +24,6 @@ base64 = "0.22.1"
 puffin = "0.19"
 puffin_http = "0.16"
 
+rfd = "0.15.1"
+
 unicode_names2 = { version = "0.6.0", default-features = false } # this old version has fewer dependencies

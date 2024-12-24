@@ -22,7 +22,7 @@ pub enum Variant {
     RecordWithMedia(record_with_media::RecordWithMedia),
 
     #[serde(rename = "app.bsky.embed.images")]
-    ImagesRaw(serde_json::Value),
+    ImagesRaw { images: Vec<images::Image> },
     #[serde(rename = "app.bsky.embed.video")]
     VideoRaw(serde_json::Value),
     #[serde(rename = "app.bsky.embed.external")]

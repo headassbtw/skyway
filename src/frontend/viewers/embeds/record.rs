@@ -69,8 +69,8 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                                     embed.add(egui::Label::new(format!("{}", post.text)).selectable(false));    
                                 }
 
-                                if let Some(_) = &post.embed {
-                                	embed.weak("Post has an embed");
+                                if let Some(val) = &post.embed {
+                                    embed.weak(format!("{:?}", val));
                                 }
                             },
                             _ => {},

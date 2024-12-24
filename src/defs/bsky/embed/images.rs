@@ -9,3 +9,12 @@ pub struct ViewImage {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub aspect_ratio: Option<super::AspectRatio>,
 }
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Image {
+    pub image: crate::defs::Blob,
+    pub alt: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub aspect_ratio: Option<super::AspectRatio>,
+}

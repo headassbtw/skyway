@@ -264,7 +264,13 @@ impl ClientFrontend {
                 let guh = jason.split("\n");
                 let mut push = String::new();
                 for (pos, i) in guh.into_iter().enumerate() {
-                    if pos >= err.line() - 7 && pos <= err.line() + 7 {
+                    let qualifier =
+                    if err.line() > 21 {
+                        true
+                    } else {
+                        pos >= err.line() - 10 && pos <= err.line() + 10
+                    };
+                    if qualifier {
                         push.push_str(i);
                         push.push('\n');
                     }
