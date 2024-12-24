@@ -1,17 +1,12 @@
-use egui::{vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
 
 use crate::{
-    BSKY_BLUE,
-    bridge::Bridge,
-    defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant},
-    frontend::{
+    bridge::Bridge, defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedViewPost, Reason, RelatedPostVariant}}, frontend::{
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{profile::FrontendProfileView, FrontendMainView},
         viewers,
-    },
-    image::ImageCache,
-    widgets::spinner::SegoeBootSpinner,
+    }, image::ImageCache, widgets::spinner::SegoeBootSpinner, BSKY_BLUE
 };
 
 use super::MainViewProposition;
@@ -27,7 +22,7 @@ impl FrontendTimelineView {
         Self { timeline: Vec::new(), timeline_cursor: Some("".to_owned()), post_highlight: (0, 999.999, false) }
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
+    pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
         ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
@@ -98,10 +93,12 @@ impl FrontendTimelineView {
             })
         });
 
-        let search_pos = ui.ctx().screen_rect().right_top() + vec2(-80.0, 80.0);
+        let profile_pos = ui.ctx().screen_rect().right_top() + vec2(-80.0, 80.0);
+        let search_pos = profile_pos - vec2(50.0, 0.0);
         let compose_pos = search_pos - vec2(50.0, 0.0);
         let refresh_pos = compose_pos - vec2(50.0, 0.0);
-
+        
+        let profile_button = ui.allocate_rect(Rect::from_center_size(profile_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let _search_button = ui.allocate_rect(Rect::from_center_size(search_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let compose_button = ui.allocate_rect(Rect::from_center_size(compose_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
         let refresh_button = ui.allocate_rect(Rect::from_center_size(refresh_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -109,6 +106,29 @@ impl FrontendTimelineView {
         ui.painter().text(search_pos, Align2::CENTER_CENTER, "\u{E11A}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
         ui.painter().text(compose_pos, Align2::CENTER_CENTER, "\u{E104}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
         ui.painter().text(refresh_pos, Align2::CENTER_CENTER, "\u{E0F2}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
+
+        if let Some(you) = &you {
+            if let Some(pfp) = &you.avatar {
+                match image.get_image(pfp) {
+                    crate::image::LoadableImage::Loaded(texture_id, _) => {
+                        ui.painter().image(texture_id, profile_button.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                    },
+                    _ => {
+                        ui.painter().rect_filled(profile_button.rect, Rounding::ZERO, BSKY_BLUE);
+                        ui.painter().text(profile_pos + vec2(0.0, 4.0), Align2::CENTER_CENTER, "\u{E2AF}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);    
+                    }
+                }
+            }
+
+            if profile_button.clicked {
+                new_view.set(FrontendMainView::Profile(FrontendProfileView::new(you.did.clone())));
+            }
+        } else {
+            ui.painter().rect_filled(profile_button.rect, Rounding::ZERO, BSKY_BLUE);
+            ui.painter().text(profile_pos + vec2(0.0, 4.0), Align2::CENTER_CENTER, "\u{E2AF}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);    
+        }
+
+        
 
         if compose_button.clicked() {
             flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
@@ -118,6 +138,8 @@ impl FrontendTimelineView {
             self.timeline_cursor = Some(String::new());
             self.timeline.clear();
         }
+
+        
 
         /*
         ui.label("LANDING PAGE");

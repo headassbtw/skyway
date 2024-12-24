@@ -4,7 +4,7 @@ use profile::FrontendProfileView;
 use thread::FrontendThreadView;
 use timeline::FrontendTimelineView;
 
-use crate::{BSKY_BLUE, bridge::Bridge, image::ImageCache};
+use crate::{bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, BSKY_BLUE};
 
 use super::main::{ClientFrontendFlyout, ClientFrontendModal};
 
@@ -73,7 +73,7 @@ impl FrontendMainViewStack {
         self.stack.pop();
     }
 
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
+    pub fn render(&mut self, ui: &mut Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
         if let Some(guh) = self.propose.0.take() {
             self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
             self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
@@ -95,7 +95,7 @@ impl FrontendMainViewStack {
                 FrontendMainView::landing(&mut view, modal);
                 ("", false)
             }
-            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),

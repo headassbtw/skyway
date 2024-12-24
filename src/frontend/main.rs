@@ -76,6 +76,7 @@ impl ClientFrontend {
         cc.egui_ctx.options_mut(|opt| {
             opt.line_scroll_speed = 80.0;
         });
+        // cc.egui_ctx.set_pixels_per_point(0.5); //makes it usable on a steam deck lmao
         cc.egui_ctx.all_styles_mut(|style| {
             // Global styles
             let text_styles: BTreeMap<_, _> = [(TextStyle::Heading, FontId::new(30.0, FontFamily::Proportional)), (TextStyle::Name("MetroHeading".into()), FontId::new(40.0, FontFamily::Name("Segoe Light".into()))), (TextStyle::Body, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Monospace, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Button, FontId::new(11.0, FontFamily::Proportional)), (TextStyle::Small, FontId::new(7.0, FontFamily::Proportional))].into();
@@ -520,7 +521,7 @@ impl eframe::App for ClientFrontend {
             }
             if self.active {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
-                    self.view_stack.render(contents, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
+                    self.view_stack.render(contents, &self.profile, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
 
                     /*match self.page {
                         ClientFrontendPage::LandingPage => self.landing_page(contents),

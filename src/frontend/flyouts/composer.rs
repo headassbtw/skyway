@@ -87,7 +87,8 @@ impl ClientFrontendFlyoutVariant {
             draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Write Here").frame(false).font(TextStyle::Body).show(ui);
 
             if data.emoji_picker {
-                ui.allocate_ui(vec2(ui.cursor().width(), 500.0), |ui| {
+                let emojis_height = f32::min(500.0, ui.cursor().height() - 100.0);
+                ui.allocate_ui(vec2(ui.cursor().width(), emojis_height), |ui| {
                     let draft = TextEdit::singleline(&mut data.emoji_search);
                     draft.desired_width(ui.cursor().width()).text_color(Color32::BLACK).hint_text("Search...").frame(false).font(TextStyle::Body).show(ui);
                     let guh = ui.fonts(|f| {
@@ -105,7 +106,7 @@ impl ClientFrontendFlyoutVariant {
                             })
                             .collect::<Vec<_>>()
                     });
-                    egui::ScrollArea::vertical().max_height(500.0).show(ui, |ui| {
+                    egui::ScrollArea::vertical().max_height(emojis_height).show(ui, |ui| {
                         ui.horizontal_wrapped(|ui| {
                             for chr in guh {
                                 if data.emoji_search.len() > 0 && !chr.1.to_lowercase().contains(&data.emoji_search.to_lowercase()) {
