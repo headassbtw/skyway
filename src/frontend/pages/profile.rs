@@ -1,6 +1,6 @@
 use std::sync::{Arc, Mutex};
 
-use egui::{pos2, vec2, Align2, Color32, FontId, Id, Layout, Rect, Rounding, ScrollArea, Ui, UiBuilder};
+use egui::{pos2, vec2, Align, Align2, Color32, FontId, Id, Layout, Rect, Rounding, ScrollArea, Ui, UiBuilder};
 use puffin::profile_scope;
 
 use crate::bridge::FrontToBackMsg;
@@ -136,7 +136,7 @@ impl FrontendProfileView {
                 });
                 let big_text_size = panel_height / 5.0;
                 let small_text_size = big_text_size / 2.5;
-
+                let mut scroll_to_posts = false;
                 ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
                     if let Some(posts_count) = &profile.posts_count {
                         let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
@@ -144,8 +144,11 @@ impl FrontendProfileView {
 
                         ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, posts_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
                         ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Posts", FontId::proportional(small_text_size), ui.style().visuals.text_color());
+
+                        if button.clicked() { scroll_to_posts = true; println!("goes hard"); }
                     }
 
+                    ui.disable();
                     if let Some(follows_count) = &profile.follows_count {
                         let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                         ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
@@ -188,7 +191,7 @@ impl FrontendProfileView {
                         #[cfg(target_os = "windows")]
                         let _ = std::process::Command::new("cmd.exe").arg("/C").arg("start").arg(url).spawn();
                     }
-
+                    ui.disable();
                     if let Some(viewer) = &profile.viewer { profile_scope!("Follow Button");
                         let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                         ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
@@ -209,7 +212,8 @@ impl FrontendProfileView {
                     }
                 });
                 ui.allocate_space(vec2(120.0, funny_rect.height()));
-                ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
+                
+                let posts_res = ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
                     let pos = if ui.cursor().left() <= title_pos.x { title_pos } else { pos2(ui.cursor().left(), title_pos.y) };
                     ui.allocate_space(vec2(ui.ctx().screen_rect().width() - 240.0, 0.0));
                     ui.painter().rect_filled(Rect::from_two_pos(pos2(pos.x, pos.y-60.0), pos2(pos.x + 500.0, pos.y + 10.0)), Rounding::ZERO, ui.style().visuals.panel_fill);
@@ -232,6 +236,7 @@ impl FrontendProfileView {
                         }
                     });
                 });
+                if scroll_to_posts { posts_res.response.scroll_to_me(Some(Align::TOP)); }
                 ui.allocate_space(vec2(right_pad, funny_rect.height()));
             }).id;
 
