@@ -94,8 +94,7 @@ impl ClientFrontend {
             style.spacing.menu_margin = Margin::ZERO;
             style.spacing.menu_spacing = 0.0;
 
-            style.always_scroll_the_only_direction = true;
-
+            //style.always_scroll_the_only_direction = true;
             style.text_styles = text_styles;
         });
         cc.egui_ctx.style_mut_of(egui::Theme::Light, |style| {
@@ -528,14 +527,6 @@ impl eframe::App for ClientFrontend {
             if self.active {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
                     self.view_stack.render(contents, &self.profile, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
-
-                    /*match self.page {
-                        ClientFrontendPage::LandingPage => self.landing_page(contents),
-                        ClientFrontendPage::TimelinePage => self.timeline_page(contents),
-                        _ => {
-                            contents.label("Unimplemented page");
-                        }
-                    }*/
                 });
             } else {
                 puffin::profile_scope!("Loading Screen");
