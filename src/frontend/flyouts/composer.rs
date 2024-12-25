@@ -94,10 +94,24 @@ impl ClientFrontendFlyoutVariant {
             if data.images.len() > 0 {
                 egui::ScrollArea::horizontal().show(ui, |ui| {
                     ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-                        for path in &data.images {
+                        let mut rm: Option<usize> = None;
+                        for (idx, path) in data.images.iter().enumerate() {
                             let (_, rect) = ui.allocate_space(vec2(160.0, 90.0));
                             ui.painter().rect_filled(rect, Rounding::ZERO, BSKY_BLUE);
+                            ui.painter().text(rect.center() - vec2(0.0, 4.0), Align2::CENTER_CENTER, idx, FontId::proportional(30.0), Color32::WHITE);
+
+                            let close_button = ui.allocate_rect(rect.shrink(4.0).with_min_x(rect.right() - 34.0).with_max_y(rect.top() + 34.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                            ui.painter().rect_filled(close_button.rect, Rounding::ZERO, Color32::from_black_alpha(128));
+                            ui.painter().text(close_button.rect.center() - vec2(0.0, 1.0), Align2::CENTER_CENTER, "\u{E0C7}", FontId::new(16.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
+                            
+                            if close_button.clicked() { rm = Some(idx); }
+
+                            let alt_button = ui.allocate_rect(rect.shrink(4.0).with_max_x(rect.left() + 44.0).with_min_y(rect.bottom() - 24.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                            ui.painter().rect_filled(alt_button.rect, Rounding::ZERO, Color32::from_black_alpha(128));
+                            ui.painter().text(alt_button.rect.left_center() + vec2(8.0, -1.0), Align2::CENTER_CENTER, "+ ALT", FontId::proportional(14.0), Color32::WHITE);
                         }
+
+                        if let Some(rm) = rm { data.images.remove(rm); }
                     });
                 });
             }
@@ -162,9 +176,6 @@ impl ClientFrontendFlyoutVariant {
                             data.images.push(file);
                         }
                     }
-                });
-                buttons.add_enabled_ui(false, |buttons| {
-                    circle_button(buttons, "", 20.0, 15.0);
                 });
                 
                 if circle_button(buttons, "\u{E234}", 20.0, 15.0).on_hover_text("Emoji Picker").clicked() {

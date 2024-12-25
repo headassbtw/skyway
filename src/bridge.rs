@@ -3,10 +3,11 @@ use crate::{backend::{
     record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
     thread::BlueskyApiGetThreadResponse,
     BlueskyApiError, ClientBackend,
-}, defs::{self, bsky::{embed, feed::defs::FeedViewPost}, Blob}, settings::Settings};
+}, defs::{self, bsky::{embed::{self, AspectRatio}, feed::defs::FeedViewPost}, Blob}, settings::Settings};
 use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, PostView}};
 use anyhow::Result;
-use std::{path::PathBuf, sync::{
+use image::{GenericImageView, ImageReader};
+use std::{fs::File, io::{BufReader, Read}, path::PathBuf, sync::{
     mpsc::{Receiver, Sender},
     Arc, Mutex,
 }};
@@ -151,10 +152,30 @@ impl Bridge {
                 }
                 // TODO: FIX THIS LATER lmao, it doesn't support alt text n whatnot
                 FrontToBackMsg::CreateRecordWithMediaRequest(record, images) => 'give_up: {
-                    let mut blobs: Vec<Blob> = Vec::new();
+                    let mut blobs: Vec<(Blob, Option<AspectRatio>)> = Vec::new();
                     for image in images {
-                        match api.upload_blob(image).await {
-                            Ok(res) => blobs.push(res),
+                        let mut file = File::open(&image).expect("no file found");
+                        let metadata = std::fs::metadata(&image).expect("unable to read metadata");
+                        let mut buffer = vec![0; metadata.len() as usize];
+                        file.read(&mut buffer).expect("buffer overflow");
+
+                        //THIS FUCKING SUCKS!
+                        let img = image::load_from_memory(&buffer);
+                        let ratio = match img {
+                            Ok(img) => {
+                                Some(AspectRatio {
+                                    width: img.dimensions().0.clone(),
+                                    height: img.dimensions().1.clone(),
+                                })
+                            },
+                            Err(err) => {
+                                println!("failed to open image: {}", err);
+                                None
+                            }
+                        };
+
+                        match api.upload_blob(buffer).await {
+                            Ok(res) => blobs.push((res, ratio)),
                             Err(err) => {
                                 tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?;
                                 break 'give_up;
@@ -166,11 +187,11 @@ impl Bridge {
                         BlueskyApiRecord::Post(ref mut post) => {
                             post.embed = Some(embed::Variant::ImagesRaw { images: {
                                 let mut vec = Vec::new();
-                                for blob in blobs {
+                                for (blob, ratio) in blobs {
                                     vec.push(defs::bsky::embed::images::Image {
                                         image: blob,
                                         alt: String::new(),
-                                        aspect_ratio: None,
+                                        aspect_ratio: ratio,
                                     });
                                 }
                                 vec

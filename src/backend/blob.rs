@@ -13,13 +13,7 @@ pub struct Response {
 }
 
 impl ClientBackend {
-    pub async fn upload_blob(&mut self, path: PathBuf) -> Result<defs::Blob, BlueskyApiError> {
-        let mut file = File::open(&path).expect("no file found");
-        let metadata = std::fs::metadata(&path).expect("unable to read metadata");
-        let mut buffer = vec![0; metadata.len() as usize];
-        file.read(&mut buffer).expect("buffer overflow");
-
-
+    pub async fn upload_blob(&mut self, buffer: Vec<u8>) -> Result<defs::Blob, BlueskyApiError> {
         let req = self.client.post(format!("{}/xrpc/com.atproto.repo.uploadBlob", self.user_pds)).body(buffer).header("content-type", "image/*");
         let req = self.make_request(req).await?;
 
