@@ -1,8 +1,9 @@
-use egui::{pos2, vec2, Response, Rounding, ScrollArea, Ui};
+use egui::{pos2, vec2, Align2, Color32, FontId, Rect, Response, Rounding, ScrollArea, Stroke, Ui};
 
+use super::profile::FrontendProfileView;
 use super::{MainViewProposition, ViewStackReturnInfo};
 use crate::bridge::FrontToBackMsg;
-use crate::defs::bsky::feed::defs::ThreadPostVariant;
+use crate::defs::bsky::feed::defs::{BlockedPost, ThreadPostVariant};
 use crate::frontend::main::ClientFrontendFlyout;
 use crate::BSKY_BLUE;
 use crate::frontend::viewers;
@@ -22,9 +23,32 @@ impl FrontendThreadView {
 }
 
 impl FrontendThreadView {
+    fn render_blocked(ui: &mut Ui, info: &BlockedPost, new_view: &mut MainViewProposition) -> Response {
+        ui.painter().text(ui.cursor().min + vec2(18.0, 16.0), Align2::CENTER_CENTER, "\u{E181}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
+        let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Blocked", FontId::proportional(20.0), ui.visuals().weak_text_color());
+
+        let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+        ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+
+        if res.clicked() { new_view.set(super::FrontendMainView::Profile(FrontendProfileView::new(info.author.did.clone()))); }
+
+        res
+    }
+
+    fn render_not_found(ui: &mut Ui) -> Response {
+        ui.painter().text(ui.cursor().min + vec2(18.0, 14.0), Align2::CENTER_CENTER, "\u{E283}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
+        let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Post not found", FontId::proportional(20.0), ui.visuals().weak_text_color());
+
+        let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click());
+        ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+
+        res
+    }
+
     fn render_reply(ui: &mut Ui, reply: &ThreadPostVariant, depth: u32, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
         match reply {
-            ThreadPostVariant::NotFound(_) | ThreadPostVariant::Blocked(_) => todo!(),
+            ThreadPostVariant::NotFound(_) => { Self::render_not_found(ui) },
+            ThreadPostVariant::Blocked(info) => { Self::render_blocked(ui, info, new_view) },
             ThreadPostVariant::ThreadView(post) => {
                 let rtn = viewers::post::post_viewer(ui, post.post.clone(), false, backend, image, flyout, new_view);
                 if depth <= 0 { return rtn; }
@@ -41,8 +65,12 @@ impl FrontendThreadView {
 
     fn render_recursive(ui: &mut Ui, thread: &ThreadPostVariant, first: bool, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
         match thread {
-            ThreadPostVariant::NotFound(_) => ui.heading("Not Found"),
-            ThreadPostVariant::Blocked(_) => ui.heading("Blocked"),
+            ThreadPostVariant::Blocked(info) => {
+                Self::render_blocked(ui, info, new_view)
+            },
+            ThreadPostVariant::NotFound(_) => {
+                Self::render_not_found(ui)
+            },
             ThreadPostVariant::ThreadView(thread) => {
                 if let Some(parent) = &thread.parent {
                     let res = Self::render_recursive(ui, &parent.lock().unwrap(), false, backend, image, flyout, new_view);
