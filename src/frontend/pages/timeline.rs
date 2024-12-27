@@ -143,6 +143,7 @@ impl FrontendTimelineView {
             title: Some("Timeline".into()),
             render_back_button: true,
             handle_back_logic: true,
+            force_back: false,
         }
     }
 }

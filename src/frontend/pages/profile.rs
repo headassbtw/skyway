@@ -251,6 +251,7 @@ impl FrontendProfileView {
             title: None,
             render_back_button: true,
             handle_back_logic: true,
+            force_back: false,
         }
     }
 }

@@ -149,7 +149,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 let font_id = FontId::proportional(if main { 20.0 } else { 14.0 });
 
                 // This kinda sucks but it works!
-                if let Some(facets) = &post.record.facets {
+                if let Some(facets) = &post.record.facets && facets.len() > 0 {
                     puffin::profile_scope!("facets/richtext");
                     post_contents.horizontal_wrapped(|ui| {
                         ui.spacing_mut().item_spacing.x = 2.0;

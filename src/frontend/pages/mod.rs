@@ -29,6 +29,8 @@ pub struct ViewStackReturnInfo {
     pub render_back_button: bool,
     /// If the back button isn't rendered, still handle the logic for it
     pub handle_back_logic: bool,
+    /// for views that implement their own back button (clickable), force a view pop
+    pub force_back: bool,
 }
 
 pub struct FrontendMainViewStack {
@@ -105,6 +107,7 @@ impl FrontendMainViewStack {
                     title: todo!(),
                     render_back_button: false,
                     handle_back_logic: false,
+                    force_back: false,
                 }
             }
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, backend, image, flyout, &mut self.propose),
@@ -125,7 +128,7 @@ impl FrontendMainViewStack {
                 back_button.clicked()
             } else { false };
             
-            if back_button_clicked || close_requested {
+            if back_button_clicked || close_requested  || inf.force_back {
                 self.pop();
             }
         }
