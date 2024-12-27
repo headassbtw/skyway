@@ -351,120 +351,7 @@ impl eframe::App for ClientFrontend {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         puffin::profile_function!();
 
-        if let Ok(proc) = self.backend.frontend_listener.try_recv() {
-            puffin::profile_scope!("Bridge processing");
-            match proc {
-                crate::bridge::BackToFrontMsg::LoginResponse(bluesky_login_response, profile) => {
-                    self.profile = profile;
-                    match bluesky_login_response {
-                        crate::backend::main::BlueskyLoginResponse::Success(_, _) => {
-                            self.active = true;
-                            self.authenticated = true;
-                            self.view_stack.set(FrontendMainView::Timeline(FrontendTimelineView::new()));
-                            self.modal.close();
-                        }
-                        crate::backend::main::BlueskyLoginResponse::Info(variant) => match variant {
-                            BlueskyLoginResponseInfo::WasntLoggedIn => self.active = true,
-                            BlueskyLoginResponseInfo::TwoFactorTokenRequired => self.info_modal("Login Error", "Your account has two-factor authenticaiton enabled. This is currently not supported."),
-                        },
-                        crate::backend::main::BlueskyLoginResponse::Error(variant) => match variant {
-                            BlueskyLoginResponseError::Generic(reason) => self.info_modal("Generic Backend Error", &reason),
-                            BlueskyLoginResponseError::Network(reason) => self.info_modal("Network Error", &reason),
-                            BlueskyLoginResponseError::InvalidRequest => self.info_modal("Invalid Request", ""),
-                            BlueskyLoginResponseError::ExpiredToken => self.info_modal("Token Expired", "Cached login has expired. Please log in again."),
-                            BlueskyLoginResponseError::InvalidToken => self.info_modal("Invalid Token", "Cached login was invalid. Please log in again."),
-                            BlueskyLoginResponseError::AccountTakenDown => self.info_modal("Account Taken Down", ""),
-                            BlueskyLoginResponseError::AccountSuspended => self.info_modal("Account Suspended", ""),
-                            BlueskyLoginResponseError::AccountInactive => self.info_modal("Account Inactive", ""),
-                            BlueskyLoginResponseError::AccountDeactivated => self.info_modal("Account Deactivated", ""),
-                            BlueskyLoginResponseError::Unauthorized => {
-                                if let Some(modal) = &mut self.modal.main {
-                                    match modal {
-                                        ClientFrontendModalVariant::LoginModal(login_modal) => {
-                                            login_modal.error_msg = "That password is incorrect.".into();
-                                        }
-                                        _ => {}
-                                    }
-                                }
-                            }
-                        },
-                    };
-                }
-                crate::bridge::BackToFrontMsg::TimelineResponse(tl) => match tl {
-                    Ok(tl) => {
-                        //TODO: FIX
-                        if let Some(page) = self.view_stack.top() {
-                            match page {
-                                FrontendMainView::Timeline(ref mut data) => {
-                                    data.timeline_cursor = tl.cursor;
-                                    for post in tl.feed {
-                                        data.timeline.push(post);
-                                    }
-                                }
-                                _ => println!("fix this :)"),
-                            }
-                        }
-                    }
-                    Err(err) => self.error_modal("Failed to get timeline", err),
-                }
-                crate::bridge::BackToFrontMsg::KeyringFailure(reason) => self.info_modal("OS Keyring Failure", &reason),
-                crate::bridge::BackToFrontMsg::RecordCreationResponse(data) => match data {
-                    Ok(_) => {
-                        if let Some(flyout) = &mut self.flyout.main {
-                            match flyout {
-                                ClientFrontendFlyoutVariant::PostComposerFlyout(flyout) => {
-                                    flyout.draft = String::new();
-                                    flyout.sending = false;
-                                    self.flyout.close();
-                                }
-                            }
-                        }
-                    }
-                    Err(err) => self.error_modal("Failed to create record", err),
-                },
-                crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
-                    if let Some(page) = self.view_stack.top() {
-                        match page {
-                            FrontendMainView::Profile(data) => {
-                                if data.id_cmp == id {
-                                    match profile {
-                                        Ok(profile) => {
-                                            data.profile_data = Some(profile);
-                                            data.loading = false;
-                                        },
-                                        Err(err) => self.error_modal("Failed to get profile", err),
-                                    }
-                                }
-                            },
-                            _ => println!("bridge target missed"),
-                        }
-                    }
-                }
-                crate::bridge::BackToFrontMsg::RecordDeletionResponse(data) => {
-                    if let Err(err) = data {
-                        self.error_modal("Failed to delete record", err)
-                    }
-                }
-                crate::bridge::BackToFrontMsg::ThreadResponse(uri, res) => {
-                    if let Some(page) = self.view_stack.top() {
-                        match page {
-                            FrontendMainView::Thread(data) => {
-                                if data.id_cmp == uri {
-                                    match res {
-                                        Ok(thread) => {
-                                            data.data = Some(crate::defs::bsky::feed::defs::ThreadPostVariant::ThreadView(thread.thread));
-                                            data.loading = false;
-                                        }
-                                        Err(err) => self.error_modal("Failed to get thread", err),
-                                    }
-                                }
-                            },
-                            _ => println!("fix this, use a callback for thread responses pleeeeeeeeeeease"),
-                        }
-                    }
-                }
-            }
-        }
+        self.proc();
 
         if self.show_egui_settings {
             puffin::profile_scope!("egui settings");
@@ -502,8 +389,8 @@ impl eframe::App for ClientFrontend {
                             if ui.add_enabled(true, Button::new("Trigger composer flyout")).clicked() {
                                 self.flyout.set(ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
                             }
-                            if ui.add_enabled(self.authenticated, Button::new("Get Timeline")).clicked() {
-                                //self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
+                            if ui.add_enabled(self.authenticated, Button::new("Clear Persistence")).clicked() {
+                                ui.ctx().data_mut(|map| { map.clear(); });
                             }
                         });
                     });
@@ -521,12 +408,16 @@ impl eframe::App for ClientFrontend {
             puffin::profile_scope!("Main panel");
             ui.set_clip_rect(ctx.screen_rect());
 
+            let flyout_anim_state = self.flyout.get_animation_state();
+            let go_back = ui.input(|r| r.key_pressed(egui::Key::Escape));
+
             if self.draw_grid {
                 draw_unit_grid(&ctx);
             }
             if self.active {
                 ui.add_enabled_ui(self.modal.main.is_none() && (self.flyout.get_animation_state().1), |contents| {
-                    self.view_stack.render(contents, &self.profile, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
+                    let close_requested = (self.modal.main.is_none() && flyout_anim_state.1) && go_back;
+                    self.view_stack.render(contents, &self.profile, close_requested, &self.backend, &self.image, &mut self.flyout, &mut self.modal);
                 });
             } else {
                 puffin::profile_scope!("Loading Screen");
@@ -551,12 +442,10 @@ impl eframe::App for ClientFrontend {
 
             const FLYOUT_WIDTH: f32 = 500.0;
 
-            let anim_state = self.flyout.get_animation_state();
-
-            if anim_state.0 {
+            if flyout_anim_state.0 {
                 puffin::profile_scope!("Flyout");
                 ui.add_enabled_ui(self.modal.main.is_none(), |ui| {
-                    let offset = FLYOUT_WIDTH - anim_state.2 * FLYOUT_WIDTH;
+                    let offset = FLYOUT_WIDTH - flyout_anim_state.2 * FLYOUT_WIDTH;
                     let content_rect = ctx.screen_rect().with_min_x(ctx.screen_rect().right() - FLYOUT_WIDTH);
                     let content_rect = content_rect.translate(vec2(offset, 0.0));
                     ui.painter().rect_filled(content_rect, Rounding::ZERO, Color32::WHITE);
@@ -564,7 +453,7 @@ impl eframe::App for ClientFrontend {
 
                     let internals_rect = content_rect.with_min_y(100.0).shrink2(vec2(30.0, 10.0));
                     let content = UiBuilder::new().max_rect(internals_rect).ui_stack_info(UiStackInfo::new(egui::UiKind::Popup));
-                    let content = if anim_state.1 { content.disabled() } else { content };
+                    let content = if flyout_anim_state.1 { content.disabled() } else { content };
 
                     ui.painter().rect_filled(content_rect.with_max_y(content_rect.top() + 100.0), Rounding::ZERO, BSKY_BLUE);
 
@@ -573,11 +462,11 @@ impl eframe::App for ClientFrontend {
                     let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click());
                     ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
 
-                    if back_button.clicked() || ctx.input(|state| state.key_pressed(egui::Key::Escape)) {
+                    if back_button.clicked() || (go_back && self.modal.main.is_none()) {
                         self.flyout.close();
                     }
 
-                    if !anim_state.1 {
+                    if !flyout_anim_state.1 {
                         let click_off_rect = ctx.screen_rect().with_max_x(content_rect.left());
                         if ui.allocate_rect(click_off_rect, egui::Sense::click()).clicked() {
                             self.flyout.close();
@@ -591,6 +480,10 @@ impl eframe::App for ClientFrontend {
                         flyout_contents.painter().text(back_button_rect.right_bottom() + vec2(20.0, 0.0), Align2::LEFT_BOTTOM, title, FontId::new(30.0, egui::FontFamily::Name("Segoe Light".into())), Color32::WHITE);
                     });
                 });
+            }
+
+            if go_back {
+                self.modal.main = None;
             }
 
             if let Some(modal) = &self.modal.main {

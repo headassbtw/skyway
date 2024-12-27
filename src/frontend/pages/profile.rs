@@ -13,7 +13,7 @@ use crate::image::LoadableImage;
 use crate::widgets::spinner::SegoeBootSpinner;
 use crate::{bridge::Bridge, image::ImageCache};
 
-use super::MainViewProposition;
+use super::{MainViewProposition, ViewStackReturnInfo};
 #[derive(Debug)]
 pub struct FrontendProfileView {
     pub profile_data: Option<ProfileViewDetailed>,
@@ -40,7 +40,7 @@ impl FrontendProfileView {
             id: Id::new(format!("{}_profile_scrollview", did)),
         }
     }
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
+    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         puffin::profile_function!();
         ui.style_mut().spacing.scroll.floating = false;
         ui.style_mut().spacing.scroll.bar_width = 18.0;
@@ -145,7 +145,7 @@ impl FrontendProfileView {
                         ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, posts_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
                         ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, "Posts", FontId::proportional(small_text_size), ui.style().visuals.text_color());
 
-                        if button.clicked() { scroll_to_posts = true; println!("goes hard"); }
+                        if button.clicked() { scroll_to_posts = true; }
                     }
 
                     ui.disable();
@@ -247,7 +247,11 @@ impl FrontendProfileView {
                 self.loading = true;
             }
         }
-        ("", true)
+        ViewStackReturnInfo {
+            title: None,
+            render_back_button: true,
+            handle_back_logic: true,
+        }
     }
 }
 

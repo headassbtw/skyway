@@ -22,6 +22,15 @@ pub enum FrontendMainView {
     Media(FrontendMediaViewVariant),
 }
 
+pub struct ViewStackReturnInfo {
+    /// Renders a title for the view in a UX-consistent way
+    pub title: Option<String>,
+    /// Display a back button, along with handling logic
+    pub render_back_button: bool,
+    /// If the back button isn't rendered, still handle the logic for it
+    pub handle_back_logic: bool,
+}
+
 pub struct FrontendMainViewStack {
     ctx: egui::Context,
     stack: Vec<FrontendMainView>,
@@ -73,7 +82,7 @@ impl FrontendMainViewStack {
         self.stack.pop();
     }
 
-    pub fn render(&mut self, ui: &mut Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
+    pub fn render(&mut self, ui: &mut Ui, you: &Option<ProfileViewDetailed>, close_requested: bool, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, modal: &mut ClientFrontendModal) {
         if let Some(guh) = self.propose.0.take() {
             self.ctx.animate_bool_with_time("FrontendMainViewStackSlide".into(), false, 0.0);
             self.ctx.animate_bool_with_time("FrontendMainViewStackTitleSlide".into(), false, 0.0);
@@ -87,13 +96,16 @@ impl FrontendMainViewStack {
         let pos = pos2(ui.cursor().left() + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
 
         let guh = self.stack.last_mut().unwrap();
-        let _ = modal; // shut the fuck up
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackSlide".into(), true, 0.7, ease_out_cubic);
         let mut view = ui.new_child(UiBuilder::new().max_rect(ui.cursor().with_max_y(self.ctx.screen_rect().bottom()).translate(vec2(100.0 - (offset * 100.0), 0.0))));
-        let (title, render_header) = match guh {
+        let inf: ViewStackReturnInfo = match guh {
             FrontendMainView::Login() => {
                 FrontendMainView::landing(&mut view, modal);
-                ("", false)
+                ViewStackReturnInfo {
+                    title: todo!(),
+                    render_back_button: false,
+                    handle_back_logic: false,
+                }
             }
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
@@ -101,16 +113,19 @@ impl FrontendMainViewStack {
             FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),
         };
         
-        if !render_header { return; }
-
-        ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
+        if let Some(title) = &inf.title {
+            ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);    
+        }
 
         if self.stack.len() > 1 {
-            let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
-
-            let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-            ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-            if back_button.clicked() || ui.input(|r| r.key_pressed(egui::Key::Escape)) {
+            let back_button_clicked = if inf.render_back_button {
+                let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
+                let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);    
+                back_button.clicked()
+            } else { false };
+            
+            if back_button_clicked || close_requested {
                 self.pop();
             }
         }

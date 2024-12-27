@@ -5,7 +5,6 @@ use crate::{
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{
-            media::{video::FrontendMediaVideoView, FrontendMediaViewVariant},
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
@@ -15,39 +14,50 @@ use crate::{
 
 use chrono::Utc;
 use egui::{
-    pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder
+    pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder, WidgetRect
 };
 
 fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyph: &str, count: usize, color: Option<Color32>) -> Response {
-    let highlight = if ui.style().visuals.dark_mode { Color32::WHITE } else { Color32::BLACK };
-
     let (id, rtn) = ui.allocate_space(vec2(size * 2.5 + ui.spacing().item_spacing.x, size));
 
-    let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
-    let color = if !enabled { ui.visuals().weak_text_color() } else { color };
+    let color = {
+        puffin::profile_scope!("Color logic");
+        let highlight = if ui.style().visuals.dark_mode { Color32::WHITE } else { Color32::BLACK };
+        let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
+        if !enabled { ui.visuals().weak_text_color() } else { color }
+    };
 
     // TEXT
     let (galley, text_width) = if count > 0 {
-        let galley = ui.painter().layout(format!("{}", count), FontId::proportional(size / 2.0), color, size * 2.0);
+        puffin::profile_scope!("Text");
+        let galley = ui.painter().layout(count.to_string(), FontId::proportional(size / 2.0), color, size * 2.0);
         let width = galley.rect.width() + ui.spacing().item_spacing.x / 3.0;
         (Some(galley),
         width)
     } else { (None, 0.0) };
 
     // like from alan wake
-    let clicker = ui.add_enabled_ui(enabled, |ui| {
-        ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(format!("action_button_{:?}_click", id)), egui::Sense::click())
+    let clicker =ui.add_enabled_ui(enabled, |ui| {
+        ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(id), egui::Sense::click())
     }).inner;
     
 
-    let anim = ui.ctx().animate_bool(Id::new(format!("action_button_{:?}_hover", id)), clicker.hovered());
-    let opacity = (anim * 16.0) as u8;
-    ui.painter().rect_filled(clicker.rect.expand(4.0 * anim), Rounding::ZERO, if ui.style().visuals.dark_mode { Color32::from_white_alpha(opacity) } else { Color32::from_black_alpha(opacity * 2) });
+    {
+        puffin::profile_scope!("Animation");
+
+        let anim = ui.ctx().animate_bool(Id::new(id), clicker.hovered());
+        let opacity = (anim * 16.0) as u8;
+        ui.painter().rect_filled(clicker.rect.expand(4.0 * anim), Rounding::ZERO, if ui.style().visuals.dark_mode { Color32::from_white_alpha(opacity) } else { Color32::from_black_alpha(opacity * 2) });
+    }
 
     // ICON
-    let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
-    ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
-    ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
+    let circle_center = {
+        puffin::profile_scope!("Icon");
+        let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
+        ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
+        ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
+        circle_center
+    };
 
     // TEXT (again)
     if let Some(galley) = galley {
@@ -116,7 +126,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                     name.painter().galley(rtn.rect.min, dn_galley, name.style().visuals.text_color());
                     rtn
                 } else {
-                    let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::proportional(15.0), name.style().visuals.text_color(), name.cursor().width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
+                    let handle_galley = name.painter().layout(post.author.handle.clone(), FontId::proportional(20.0), name.style().visuals.text_color(), name.cursor().width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
 
                     let rtn = name.allocate_response(handle_galley.rect.size(), egui::Sense::click());
                     if !name.is_rect_visible(rtn.rect) { break 'render_name; }
@@ -140,13 +150,13 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
                 // This kinda sucks but it works!
                 if let Some(facets) = &post.record.facets {
+                    puffin::profile_scope!("facets/richtext");
                     post_contents.horizontal_wrapped(|ui| {
                         ui.spacing_mut().item_spacing.x = 2.0;
                         ui.style_mut().visuals.override_text_color = Some(ui.visuals().noninteractive().fg_stroke.color);
 
                         let mut prev: usize = 0;
                         for (idx, facet) in facets.iter().enumerate() {
-
                             if prev < facet.index.byte_start {
                                 if ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start-1]).font(font_id.clone()))).clicked() {
                                     view_thread = true;
@@ -228,60 +238,77 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
             post_contents.style_mut().spacing.item_spacing.y = 10.0;
             post_contents.allocate_space(vec2(0.0, 0.0));
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
-                puffin::profile_scope!("Action Buttons");
                 if post.viewer.is_none() {
+                    puffin::profile_scope!("Action Buttons early exit 0");
                     break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother
                 }
                 if !action_buttons.is_rect_visible(action_buttons.cursor().with_max_y(action_buttons.cursor().top() + 30.0)) {
+                    puffin::profile_scope!("Action Buttons early exit 1");
                     action_buttons.allocate_space(vec2(0.0, 30.0));
                     break 'render_action_buttons;
                 }
 
+                puffin::profile_scope!("Action Buttons");
+
                 action_buttons.style_mut().spacing.item_spacing.x = 30.0;
 
-                let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
-                let reply_count = post.reply_count.unwrap_or(0);
-                let reply_button = action_button(action_buttons, reply_enabled, false, 30.0, "\u{E206}", reply_count as usize, None);
-                if reply_button.clicked() {
-                    let reply = ReplyRef {
-                        root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { StrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
-                        parent: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
-                    };
-                    flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
-                }
+                {
+                    puffin::profile_scope!("Reply Button");
 
-                let repost_count = post.repost_count.unwrap_or(0) + post.quote_count.unwrap_or(0);
-                let self_reposted = post.viewer.as_ref().unwrap().repost.is_some();
-                let repost_button = action_button(action_buttons, true, self_reposted, 30.0, "\u{E207}", repost_count as usize, Some(Color32::from_rgb(92, 239, 170)));
-
-                click_context_menu::click_context_menu(repost_button, |guh| {
-                    guh.spacing_mut().item_spacing.y = 0.0;
-                    if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
-                        repost = Some(!self_reposted);
+                    let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
+                    let reply_count = post.reply_count.unwrap_or(0);
+                    let reply_button = action_button(action_buttons, reply_enabled, false, 30.0, "\u{E206}", reply_count as usize, None);
+                    if reply_button.clicked() {
+                        let reply = ReplyRef {
+                            root: if let Some(reply) = &post.record.reply { reply.root.clone() } else { StrongRef { uri: post.uri.clone(), cid: post.cid.clone() } },
+                            parent: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() },
+                        };
+                        flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::with_reply(reply)));
                     }
-                    if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
-                });
+                }
+                {
+                    puffin::profile_scope!("Repost Button");
+
+                    let repost_count = post.repost_count.unwrap_or(0) + post.quote_count.unwrap_or(0);
+                    let self_reposted = post.viewer.as_ref().unwrap().repost.is_some();
+                    let repost_button = action_button(action_buttons, true, self_reposted, 30.0, "\u{E207}", repost_count as usize, Some(Color32::from_rgb(92, 239, 170)));
+
+                    click_context_menu::click_context_menu(repost_button, |guh| {
+                        guh.spacing_mut().item_spacing.y = 0.0;
+                        if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
+                            repost = Some(!self_reposted);
+                        }
+                        if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
+                    });
+                }
                 
-                let like_count = post.like_count.unwrap_or(0);
-                let self_liked = post.viewer.as_ref().unwrap().like.is_some();
-                if action_button(action_buttons, true, self_liked, 30.0, "\u{E209}", like_count as usize, Some(Color32::from_rgb(236, 72, 153))).clicked() {
-                    like = Some(!self_liked);
+                {
+                    puffin::profile_scope!("Like Button");
+
+                    let like_count = post.like_count.unwrap_or(0);
+                    let self_liked = post.viewer.as_ref().unwrap().like.is_some();
+                    if action_button(action_buttons, true, self_liked, 30.0, "\u{E209}", like_count as usize, Some(Color32::from_rgb(236, 72, 153))).clicked() {
+                        like = Some(!self_liked);
+                    }
                 }
 
+                {
+                    puffin::profile_scope!("More Button");
 
-                click_context_menu::click_context_menu(action_button(action_buttons, true, false, 30.0, "\u{E0C2}", 0, None), |guh| {
-                    guh.spacing_mut().item_spacing.y = 0.0;
-                    if guh.add(Button::new("Open in browser").min_size(vec2(280.0, 40.0))).clicked() {
-                        let id = post.uri.split("/").last().unwrap();
-                        let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
-                        let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
+                    click_context_menu::click_context_menu(action_button(action_buttons, true, false, 30.0, "\u{E0C2}", 0, None), |guh| {
+                        guh.spacing_mut().item_spacing.y = 0.0;
+                        if guh.add(Button::new("Open in browser").min_size(vec2(280.0, 40.0))).clicked() {
+                            let id = post.uri.split("/").last().unwrap();
+                            let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
+                            let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
 
-                        open_in_browser(&url);
-                    }
+                            open_in_browser(&url);
+                        }
 
-                    if guh.add_enabled(false, Button::new("Copy link").min_size(vec2(280.0, 40.0))).clicked() {
-                    }
-                });
+                        if guh.add_enabled(false, Button::new("Copy link").min_size(vec2(280.0, 40.0))).clicked() {
+                        }
+                    });
+                }
 
                 // take up the remainder of the space, so that any thing to the right of the post is clickable
                 //action_buttons.allocate_space(vec2(action_buttons.cursor().width(), 30.0));
@@ -322,7 +349,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
         println!("guh!");
     }
 
-    if view_thread || ffs.response.interact(egui::Sense::click()).clicked() {
+    if !main && (view_thread || ffs.response.interact(egui::Sense::click()).clicked()) {
         new_view.set(FrontendMainView::Thread(FrontendThreadView::new(post.uri.clone())));
     }
     if view_profile {

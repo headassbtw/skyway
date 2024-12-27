@@ -5,6 +5,7 @@ pub mod main;
 pub mod modals;
 pub mod pages;
 pub mod viewers;
+pub mod bridge_proc;
 
 fn circle_button(ui: &mut egui::Ui, icon: &str, icon_size: f32, radius: f32) -> egui::Response {
     puffin::profile_function!();

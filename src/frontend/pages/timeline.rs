@@ -9,7 +9,7 @@ use crate::{
     }, image::ImageCache, widgets::spinner::SegoeBootSpinner, BSKY_BLUE
 };
 
-use super::MainViewProposition;
+use super::{MainViewProposition, ViewStackReturnInfo};
 
 pub struct FrontendTimelineView {
     pub timeline: Vec<FeedViewPost>,
@@ -22,7 +22,7 @@ impl FrontendTimelineView {
         Self { timeline: Vec::new(), timeline_cursor: Some("".to_owned()), post_highlight: (0, 999.999, false) }
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> (&str, bool) {
+    pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
         ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
@@ -139,15 +139,10 @@ impl FrontendTimelineView {
             self.timeline.clear();
         }
 
-        
-
-        /*
-        ui.label("LANDING PAGE");
-        if ui.button("").clicked() {
-            let data = LoginModal::new();
-            self.modal = Some(crate::frontend::main::ClientFrontendModal::LoginModal(data));
+        ViewStackReturnInfo {
+            title: Some("Timeline".into()),
+            render_back_button: true,
+            handle_back_logic: true,
         }
-        */
-        ("Timeline", true)
     }
 }
