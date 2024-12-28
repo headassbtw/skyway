@@ -122,6 +122,7 @@ pub struct ProfileAssociatedChat {
     pub allow_incoming: ProfileAssociatedChatAllowIncoming,
 }
 
+/// Metadata about the requesting account's relationship with the subject account. Only has meaningful content for authed requests.
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewerState {
@@ -143,6 +144,7 @@ pub struct ViewerState {
     pub known_followers: Option<KnownFollowers>,
 }
 
+/// The subject's followers whom you also follow
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct KnownFollowers {
@@ -220,24 +222,85 @@ pub struct PersonalDetailsPref(serde_json::Value);
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct FeedViewPref(serde_json::Value);
+pub struct FeedViewPref {
+    pub feed: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_replies: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_replies_by_unfollowed: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_replies_by_like_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_reposts: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub hide_quote_posts: Option<bool>,
+}
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum ThreadViewSort {
+    Oldest,
+    Newest,
+    MostLikes,
+    Random,
+    Hotness
+}
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadViewPref {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub sort: Option<ThreadViewSort>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prioritize_followed_users: Option<bool>,
+}
+
+/// A list of tags which describe the account owner's interests gathered during onboarding.
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterestsPref {
+    pub tags: Vec<String>,
+}
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ThreadViewPref(serde_json::Value);
+pub enum MutedWordTarget {
+    Content,
+    Tag,
+}
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct InterestsPref(serde_json::Value);
+#[serde(rename_all = "kebab-case")]
+pub enum MutedWordActorTarget {
+    All,
+    ExcludeFollowing,
+}
 
+/// A word that the account owner has muted.
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct MutedWordsPref(serde_json::Value);
+pub struct MutedWord {
+    pub value: String,
+    pub targets: Vec<MutedWordTarget>,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub actor_target: Option<MutedWordActorTarget>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expires_at: Option<DateTime<Utc>>
+}
+
+/// A list of words the account owner has muted.
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutedWordsPref {
+    items: Vec<MutedWord>,
+}
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct HiddenPostsPref(serde_json::Value);
 
+/// How come you guys get custom stuff and i don't :(
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BskyAppStatePref(serde_json::Value);

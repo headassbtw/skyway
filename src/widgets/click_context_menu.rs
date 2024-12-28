@@ -1,5 +1,5 @@
 use egui::{
-    menu::{BarState, MenuRoot}, pos2, style::{WidgetVisuals, Widgets}, vec2, Color32, Id, InnerResponse, Margin, Rounding, Spacing, Stroke, Vec2, Vec2b, Visuals
+    menu::{BarState, MenuRoot}, pos2, style::{WidgetVisuals, Widgets}, vec2, Color32, FontId, Id, InnerResponse, Margin, Rounding, Spacing, Stroke, Vec2, Vec2b, Visuals
 };
 #[derive(Clone)]
 struct MetroContextMenu {
@@ -95,6 +95,7 @@ pub fn click_context_menu(response: egui::Response, add_contents: impl FnOnce(&m
     .min_width(336.0)
     .fixed_pos(pos2(response.rect.min.x, response.rect.max.y + 4.0))
     .show(&response.ctx, |jank| {
+        //jank.style_mut().override_font_id = Some(FontId::new(11.0, egui::FontFamily::Name("Segoe Light".into()))); // doesn't work???
         *jank.visuals_mut() = data.visuals.clone();
         *jank.spacing_mut() = data.spacing.clone();
         jank.allocate_space(vec2(336.0, 0.0));
