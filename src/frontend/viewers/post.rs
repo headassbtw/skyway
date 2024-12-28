@@ -275,10 +275,10 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
                     click_context_menu::click_context_menu(repost_button, |guh| {
                         guh.spacing_mut().item_spacing.y = 0.0;
-                        if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(vec2(280.0, 40.0))).clicked() {
+                        if guh.add(Button::new(if self_reposted { "Un-Repost" } else { "Repost" }).min_size(guh.spacing().interact_size)).clicked() {
                             repost = Some(!self_reposted);
                         }
-                        if guh.add_enabled(false, Button::new("Quote Repost").min_size(vec2(280.0, 40.0))).clicked() { }
+                        if guh.add_enabled(false, Button::new("Quote Repost").min_size(guh.spacing().interact_size)).clicked() { }
                     });
                 }
                 
@@ -297,7 +297,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
                     click_context_menu::click_context_menu(action_button(action_buttons, true, false, 30.0, "\u{E0C2}", 0, None), |guh| {
                         guh.spacing_mut().item_spacing.y = 0.0;
-                        if guh.add(Button::new("Open in browser").min_size(vec2(280.0, 40.0))).clicked() {
+                        if guh.add(Button::new("Open in browser").min_size(guh.spacing().interact_size)).clicked() {
                             let id = post.uri.split("/").last().unwrap();
                             let handle = if post.author.handle.eq("handle.invalid") { &post.author.did } else { &post.author.handle };
                             let url = format!("https://bsky.app/profile/{}/post/{}", handle, id);
@@ -305,7 +305,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                             open_in_browser(&url);
                         }
 
-                        if guh.add_enabled(false, Button::new("Copy link").min_size(vec2(280.0, 40.0))).clicked() {
+                        if guh.add_enabled(false, Button::new("Copy link").min_size(guh.spacing().interact_size)).clicked() {
                         }
                     });
                 }

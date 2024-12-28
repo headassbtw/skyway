@@ -154,3 +154,36 @@ pub struct BlockedAuthor {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub viewer: Option<ViewerState>,
 }
+
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratorView {
+    pub uri: String,
+    pub cid: String,
+    pub did: String,
+    pub creator: crate::defs::bsky::actor::defs::ProfileView,
+    pub display_name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description_facets: Option<Vec<crate::defs::bsky::richtext::Facet>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub like_count: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accepts_interactions: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<Vec<crate::defs::atproto::label::defs::Label>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub viewer: Option<GeneratorViewerState>,
+    pub indexed_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneratorViewerState {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub like: Option<String>,
+}

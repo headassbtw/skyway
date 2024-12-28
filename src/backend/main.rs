@@ -16,9 +16,13 @@ pub enum BlueskyLoginResponseError {
     Unauthorized,
 }
 
+pub struct LoginInformation {
+    pub did: String,
+    pub refresh_token: String,
+}
+
 pub enum BlueskyLoginResponse {
-    /// DID then refresh token
-    Success(String, String),
+    Success(LoginInformation),
     Info(BlueskyLoginResponseInfo),
     Error(BlueskyLoginResponseError),
 }

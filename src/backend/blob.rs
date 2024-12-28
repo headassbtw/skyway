@@ -1,12 +1,10 @@
-use std::{fs::File, io::Read, path::PathBuf};
-
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use crate::defs;
 
 use super::{BlueskyApiError, ClientBackend};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Response {
     pub blob: defs::Blob,

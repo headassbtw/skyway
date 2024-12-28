@@ -41,6 +41,10 @@ impl ProfileViewBasic {
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ProfileView(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ProfileViewDetailed {
     pub did: String,
     pub handle: String,
@@ -145,3 +149,99 @@ pub struct KnownFollowers {
     pub count: usize,
     pub followers: Vec<ProfileViewBasic>,
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[serde(tag = "$type")]
+pub enum Preference {
+    #[serde(rename = "app.bsky.actor.defs#adultContentPref")]
+    AdultContentPref(AdultContentPref),
+    #[serde(rename = "app.bsky.actor.defs#contentLabelPref")]
+    ContentLabelPref(ContentLabelPref),
+    #[serde(rename = "app.bsky.actor.defs#savedFeedsPref")]
+    SavedFeedsPref(SavedFeedsPref),
+    #[serde(rename = "app.bsky.actor.defs#savedFeedsPrefV2")]
+    SavedFeedsPrefV2(SavedFeedsPrefV2),
+    #[serde(rename = "app.bsky.actor.defs#personalDetailsPref")]
+    PersonalDetailsPref(PersonalDetailsPref),
+    #[serde(rename = "app.bsky.actor.defs#feedViewPref")]
+    FeedViewPref(FeedViewPref),
+    #[serde(rename = "app.bsky.actor.defs#threadViewPref")]
+    ThreadViewPref(ThreadViewPref),
+    #[serde(rename = "app.bsky.actor.defs#interestsPref")]
+    InterestsPref(InterestsPref),
+    #[serde(rename = "app.bsky.actor.defs#mutedWordsPref")]
+    MutedWordsPref(MutedWordsPref),
+    #[serde(rename = "app.bsky.actor.defs#hiddenPostsPref")]
+    HiddenPostsPref(HiddenPostsPref),
+    #[serde(rename = "app.bsky.actor.defs#bskyAppStatePref")]
+    BskyAppStatePref(BskyAppStatePref),
+    #[serde(rename = "app.bsky.actor.defs#labelersPref")]
+    LabelersPref(LabelersPref),
+}
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct AdultContentPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContentLabelPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedFeedsPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SavedFeedType {
+    Feed,
+    List,
+    Timeline,
+}
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+pub struct SavedFeed {
+    pub id: String, 
+    pub r#type: SavedFeedType,
+    pub value: String,
+    pub pinned: bool,
+}
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedFeedsPrefV2 {
+    pub items: Vec<SavedFeed>,
+}
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersonalDetailsPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FeedViewPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadViewPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InterestsPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MutedWordsPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HiddenPostsPref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BskyAppStatePref(serde_json::Value);
+
+#[derive(std::fmt::Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LabelersPref(serde_json::Value);

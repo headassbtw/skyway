@@ -1,33 +1,102 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
+use egui::{load::SizedTexture, pos2, vec2, Align2, Color32, FontId, ImageSource, Layout, Rect, Rounding, ScrollArea, Stroke, Style, TextureHandle, Vec2};
 
 use crate::{
-    bridge::Bridge, defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedViewPost, Reason, RelatedPostVariant}}, frontend::{
+    backend::feeds::ActorFeedsResponse, bridge::Bridge, defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, FeedViewPost, GeneratorView, Reason, RelatedPostVariant}}, frontend::{
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{profile::FrontendProfileView, FrontendMainView},
         viewers,
-    }, image::ImageCache, widgets::spinner::SegoeBootSpinner, BSKY_BLUE
+    }, image::ImageCache, widgets::{click_context_menu, spinner::SegoeBootSpinner}, BSKY_BLUE
 };
 
 use super::{MainViewProposition, ViewStackReturnInfo};
 
 pub struct FrontendTimelineView {
-    pub timeline: Vec<FeedViewPost>,
-    pub timeline_cursor: Option<String>,
+    pub timeline: FeedCursorPair,
+    pub feed: usize,
+    pub feeds: Vec<(crate::defs::bsky::feed::defs::GeneratorView, FeedCursorPair)>,
     pub post_highlight: (usize, f32, bool),
 }
 
+fn ease_out_cubic(x: f32) -> f32 {
+    return 1.0 - f32::powf(1.0 - x, 3.0);
+}
+
 impl FrontendTimelineView {
-    pub fn new() -> Self {
-        Self { timeline: Vec::new(), timeline_cursor: Some("".to_owned()), post_highlight: (0, 999.999, false) }
+    pub fn new(feeds: Vec<GeneratorView>) -> Self {
+        let mut feeds_dest: Vec<(crate::defs::bsky::feed::defs::GeneratorView, FeedCursorPair)> = Vec::new();
+        for feed in feeds {
+            feeds_dest.push((feed, FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() }));
+        }
+        Self {
+            timeline: FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() },
+            feed: 0,
+            feeds: feeds_dest,
+            post_highlight: (0, 999.999, false)
+        }
     }
 
     pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
-        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
-            let length = if self.timeline.len() <= 0 { 0 } else { self.timeline.len() - 1 };
+        let offset = ui.ctx().animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
+        let pos = pos2(120.0 + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
 
+        let name = if self.feed >= 1 && let Some(feed) = self.feeds.get(self.feed - 1) {
+            format!("{} \u{E09D}", feed.0.display_name)
+        } else {
+            "Timeline \u{E09D}".to_owned()
+        };
+
+        let galley = ui.painter().layout(name, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), Color32::PLACEHOLDER, ui.cursor().width());
+        let feed_swapper = ui.interact(Rect { min: pos2(pos.x, pos.y - galley.rect.height()), max: pos2(pos.x + galley.rect.width(), pos.y) }, egui::Id::new("TitleInteract"), egui::Sense::click());
+        let mult = if feed_swapper.hovered() {
+            if feed_swapper.is_pointer_button_down_on() {
+                BSKY_BLUE.linear_multiply(0.25)
+            } else {
+                BSKY_BLUE.linear_multiply(0.5)
+            }
+        } else {
+            BSKY_BLUE
+        };
+        ui.painter().galley(pos - vec2(0.0, galley.rect.height()), galley, mult);
+
+        click_context_menu::click_context_menu(feed_swapper, |ui| {
+            let following_response = ui.add(egui::Button::image_and_text(
+                ImageSource::Texture(SizedTexture { id: egui::TextureId::Managed(0), size: vec2(40.0, 40.0) }),
+                "Timeline"
+                ).min_size(ui.spacing().interact_size));
+
+            let tl_image_rect = Rect { min: following_response.rect.min + ui.spacing().button_padding, max: following_response.rect.min + ui.spacing().button_padding + vec2(40.0, 40.0) };
+            ui.painter().rect_filled( tl_image_rect, Rounding::ZERO, BSKY_BLUE);
+            ui.painter().text(tl_image_rect.center(), Align2::CENTER_CENTER, "\u{E1A6}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
+            if following_response.clicked() { self.feed = 0; }
+
+            for (i, feed) in self.feeds.iter().enumerate() {
+                let response = ui.add(egui::Button::image_and_text(
+                    ImageSource::Texture(SizedTexture { id: egui::TextureId::Managed(0), size: vec2(40.0, 40.0) }),
+                    feed.0.display_name.clone()
+                ).min_size(ui.spacing().interact_size));
+                if response.clicked() {
+                    self.feed = i + 1;
+                }
+
+                let image_rect = Rect { min: response.rect.min + ui.spacing().button_padding, max: response.rect.min + ui.spacing().button_padding + vec2(40.0, 40.0) };
+                ui.painter().rect_filled(image_rect, Rounding::ZERO, BSKY_BLUE);
+                if let Some(avatar) = &feed.0.avatar {
+                    match image.get_image(&avatar) {
+                        crate::image::LoadableImage::Unloaded | crate::image::LoadableImage::Loading => {},
+                        crate::image::LoadableImage::Loaded(texture_id, vec2) => {
+                            ui.painter().image(texture_id, image_rect, Rect::from_two_pos(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                        },
+                    }
+                }
+                
+            }
+            
+        });
+        
+        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
             // keyboard nav polling
             let (scrolling, scroll_to) = {
                 puffin::profile_scope!("Keyboard nav part A");
@@ -57,9 +126,13 @@ impl FrontendTimelineView {
                 self.post_highlight.1 = 9999.9999;
                 (scrolling, scroll_to)
             };
-            for i in 0..length {
+            let iter = if self.feed == 0 {
+                self.timeline.feed.iter().enumerate()
+            } else {
+                self.feeds.get(self.feed - 1).unwrap().1.feed.iter().enumerate()
+            };
+            for (i, post) in iter {
                 puffin::profile_scope!("Post");
-                let post = &self.timeline[i];
                 
                 let res = viewers::feed_post::feed_post_viewer(tl, &post, backend, image, flyout, new_view);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
@@ -86,9 +159,21 @@ impl FrontendTimelineView {
             }
             tl.with_layout(Layout::top_down(egui::Align::Center), |spinner| {
                 let spinner_rect = spinner.add_sized(vec2(40.0, 40.0), SegoeBootSpinner::new().size(40.0).color(BSKY_BLUE)).rect;
-                if spinner.is_rect_visible(spinner_rect) && self.timeline_cursor.is_some() {
-                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(self.timeline_cursor.clone(), None)).unwrap();
-                    self.timeline_cursor = None;
+                let mut jank = String::new();
+                let tl: &mut FeedCursorPair = if self.feed == 0 {
+                    &mut self.timeline
+                } else {
+                    jank = self.feeds.get(self.feed - 1).unwrap().0.uri.clone();
+                    &mut self.feeds.get_mut(self.feed - 1).unwrap().1
+                };
+                if spinner.is_rect_visible(spinner_rect) && tl.cursor.is_some() {
+                    if self.feed == 0 {
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(tl.cursor.clone(), None)).unwrap();
+                    } else {
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetFeedRequest(jank, tl.cursor.clone(), None)).unwrap();
+                    }
+                    
+                    tl.cursor = None;
                 }
             })
         });
@@ -135,12 +220,12 @@ impl FrontendTimelineView {
         }
 
         if refresh_button.clicked() {
-            self.timeline_cursor = Some(String::new());
-            self.timeline.clear();
+            self.timeline.cursor = Some(String::new());
+            self.timeline.feed.clear();
         }
 
         ViewStackReturnInfo {
-            title: Some("Timeline".into()),
+            title: None,
             render_back_button: true,
             handle_back_logic: true,
             force_back: false,

@@ -1,6 +1,11 @@
-use crate::defs::{self, bsky::feed::defs::{FeedCursorPair, FeedViewPost}};
+use crate::defs::{self, bsky::{actor::defs::Preference, feed::defs::{FeedCursorPair, FeedViewPost}}};
 
 use super::{BlueskyApiError, ClientBackend};
+
+#[derive(Debug, serde::Deserialize)]
+pub struct PreferencesResponse {
+    pub preferences: Vec<Preference>
+}
 
 impl ClientBackend {
     pub async fn get_profile_self(&mut self) -> Result<defs::bsky::actor::defs::ProfileViewDetailed, BlueskyApiError> {
@@ -39,5 +44,23 @@ impl ClientBackend {
         let parse = parse.unwrap();
 
         return Ok(parse);
+    }
+
+    /// Get private preferences attached to the current account. Expected use is synchronization between multiple devices, and import/export during account migration. Requires auth.
+    pub async fn get_preferences(&mut self) -> Result<Vec<Preference>, BlueskyApiError> {
+        let request = self.client.get(format!("{}/xrpc/app.bsky.actor.getPreferences", self.user_pds));
+        let req = self.make_request(request).await;
+        if let Err(err) = req {
+            return Err(err);
+        }
+        let req = req.unwrap();
+
+        let parse: Result<PreferencesResponse, serde_json::Error> = serde_json::from_str(&req);
+        if let Err(err) = parse {
+            return Err(BlueskyApiError::ParseError(err, req));
+        }
+        let parse = parse.unwrap();
+
+        return Ok(parse.preferences);
     }
 }

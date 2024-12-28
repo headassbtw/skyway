@@ -1,9 +1,6 @@
 use crate::{backend::{
-    main::BlueskyLoginResponse,
-    record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord},
-    thread::BlueskyApiGetThreadResponse,
-    BlueskyApiError, ClientBackend,
-}, defs::{self, bsky::{embed::{self, AspectRatio}, feed::defs::FeedViewPost}, Blob}, settings::Settings};
+    feeds::ActorFeedsResponse, main::BlueskyLoginResponse, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
+}, defs::{self, bsky::{actor::defs::Preference, embed::{self, AspectRatio}, feed::defs::{FeedViewPost, GeneratorView}}, Blob}, settings::Settings};
 use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, PostView}};
 use anyhow::Result;
 use image::{GenericImageView, ImageReader};
@@ -18,6 +15,7 @@ pub enum FrontToBackMsg {
     LoginRequest2FA(String, String, String),
 
     GetTimelineRequest(Option<String>, Option<u32>),
+    GetFeedRequest(String, Option<String>, Option<u32>),
     GetProfileRequest(String),
     GetThreadRequest(String),
     GetAuthorFeedRequest(String, String, Arc<Mutex<FeedCursorPair>>),
@@ -31,7 +29,7 @@ pub enum FrontToBackMsg {
 }
 
 pub enum BackToFrontMsg {
-    LoginResponse(BlueskyLoginResponse, Option<ProfileViewDetailed>),
+    LoginResponse(BlueskyLoginResponse, Option<ProfileViewDetailed>, Vec<GeneratorView>),
     TimelineResponse(Result<FeedCursorPair, BlueskyApiError>),
     KeyringFailure(String),
     RecordCreationResponse(Result<BlueskyApiCreateRecordResponse, BlueskyApiError>),
@@ -71,25 +69,68 @@ impl Bridge {
         let vault = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt");
         if let Ok(vault) = vault {
             if let Ok(token) = vault.get_password() {
+                'gaming: {
                 let login_response = api.login_refresh(token).await;
-                match &login_response {
-                    BlueskyLoginResponse::Success(_, refresh) => {
-                        if let Err(error) = vault.set_password(refresh) {
-                            tx.send(BackToFrontMsg::KeyringFailure(format!("Error when caching login: {:?}", error)))?;
-                        }
+                let login_response = if let BlueskyLoginResponse::Success(inf) = login_response {
+                    inf
+                } else {
+                    tx.send(BackToFrontMsg::LoginResponse(login_response, None, Vec::new()))?;
+                    break 'gaming;
+                };
+                if let Ok(vault) = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt") {
+                    if let Err(error) = vault.set_password(&login_response.refresh_token) {
+                        tx.send(BackToFrontMsg::KeyringFailure(format!("Error when caching login: {:?}", error)))?;
                     }
-                    _ => {}
                 }
                 let profile = match api.get_profile_self().await {
                     Ok(p) => Some(p),
                     Err(_) => None,
                 };
-                tx.send(BackToFrontMsg::LoginResponse(login_response, profile))?;
+                //TODO: USE PREFS!
+                let gen_views: Vec<GeneratorView> = match api.get_preferences().await {
+                    Ok(ok) => {
+                        println!("got prefs!");
+                        println!("{:?}", ok);
+                        let feeds:Vec<String> = {
+                            let mut feeds = Vec::new();
+                            for pref in ok {
+                                if let Preference::SavedFeedsPrefV2(val) = pref {
+                                    for feed in val.items {
+                                        if feed.value.starts_with("at") && feed.pinned {
+                                            feeds.push(feed.value);    
+                                        }
+                                    }
+                                    break;
+                                }
+                            }
+                            feeds
+                        };
+
+                        match api.get_feed_generators(feeds).await {
+                            Ok(ok) => ok,
+                            Err(err) => {
+                                println!("feeds failed boowomp");
+                                print!("{:?}", err);
+                                Vec::new()
+                            },
+                        }
+                    },
+                    Err(err) => {
+                        println!("prefs failed boowomp");
+                        print!("{:?}", err);
+                        Vec::new()
+                    },
+                };
+
+                
+                
+                tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Success(login_response), profile, gen_views))?;
+                }
             } else {
-                tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Info(crate::backend::main::BlueskyLoginResponseInfo::WasntLoggedIn), None))?;
+                tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Info(crate::backend::main::BlueskyLoginResponseInfo::WasntLoggedIn), None, Vec::new()))?;
             }
         } else {
-            tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Info(crate::backend::main::BlueskyLoginResponseInfo::WasntLoggedIn), None))?;
+            tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Info(crate::backend::main::BlueskyLoginResponseInfo::WasntLoggedIn), None, Vec::new()))?;
             tx.send(BackToFrontMsg::KeyringFailure(format!("Failed to initialize keyring. {:?}", vault.err().unwrap())))?;
         }
 
@@ -107,25 +148,30 @@ impl Bridge {
                 FrontToBackMsg::ShutdownMessage => {drop(working); break 'outer},
                 FrontToBackMsg::LoginRequestStandard(handle, password) => {
                     let login_response = api.login(handle, password).await;
-                    match &login_response {
-                        BlueskyLoginResponse::Success(_, refresh_token) => {
-                            if let Ok(vault) = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt") {
-                                if let Err(error) = vault.set_password(&refresh_token) {
-                                    tx.send(BackToFrontMsg::KeyringFailure(format!("Error when caching login: {:?}", error)))?;
-                                }
-                            }
+                    let login_response = if let BlueskyLoginResponse::Success(inf) = login_response {
+                        inf
+                    } else {
+                        tx.send(BackToFrontMsg::LoginResponse(login_response, None, Vec::new()))?;
+                        continue;
+                    };
+                    if let Ok(vault) = keyring::Entry::new("com.headassbtw.metro.bluesky", "refreshJwt") {
+                        if let Err(error) = vault.set_password(&login_response.refresh_token) {
+                            tx.send(BackToFrontMsg::KeyringFailure(format!("Error when caching login: {:?}", error)))?;
                         }
-                        _ => {}
                     }
                     let profile = match api.get_profile_self().await {
                         Ok(p) => Some(p),
                         Err(_) => None,
                     };
-                    tx.send(BackToFrontMsg::LoginResponse(login_response, profile))?;
+                    
+                    tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Success(login_response), profile, Vec::new()))?;
                 }
                 FrontToBackMsg::LoginRequest2FA(_, _, _) => todo!(),
                 FrontToBackMsg::GetTimelineRequest(cursor, limit) => {
                     tx.send(BackToFrontMsg::TimelineResponse(api.get_timeline(cursor, limit).await))?;
+                }
+                FrontToBackMsg::GetFeedRequest(feed, cursor, _limit) => {
+                    tx.send(BackToFrontMsg::TimelineResponse(api.get_feed(feed, cursor).await))?;
                 }
                 FrontToBackMsg::GetProfileRequest(did) => {
                     tx.send(BackToFrontMsg::ProfileResponse(did.clone(), api.get_profile(did).await))?;

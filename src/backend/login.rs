@@ -5,7 +5,7 @@ use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 
 use super::{
-    main::{BlueskyLoginResponse, BlueskyLoginResponseError},
+    main::{BlueskyLoginResponse, BlueskyLoginResponseError, LoginInformation},
     ClientBackend,
 };
 use base64::prelude::*;
@@ -152,7 +152,11 @@ impl ClientBackend {
                 }
 
                 self.refresh_token = response.refresh_jwt.clone();
-                return BlueskyLoginResponse::Success(self.did.clone(), response.refresh_jwt);
+                
+                return BlueskyLoginResponse::Success(LoginInformation {
+                    did: self.did.clone(),
+                    refresh_token: response.refresh_jwt
+                });
             }
             _ => {
                 println!("Generic error: {:?}", res);

@@ -1,4 +1,4 @@
-use crate::{backend::main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo}, frontend::{main::{ClientFrontendFlyoutVariant, ClientFrontendModalVariant}, pages::{timeline::FrontendTimelineView, FrontendMainView}}};
+use crate::{backend::{feeds::ActorFeedsResponse, main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo}}, frontend::{main::{ClientFrontendFlyoutVariant, ClientFrontendModalVariant}, pages::{timeline::FrontendTimelineView, FrontendMainView}}};
 
 use super::main::ClientFrontend;
 
@@ -7,13 +7,13 @@ impl ClientFrontend {
 		if let Ok(proc) = self.backend.frontend_listener.try_recv() {
             puffin::profile_scope!("Bridge processing");
             match proc {
-                crate::bridge::BackToFrontMsg::LoginResponse(bluesky_login_response, profile) => {
+                crate::bridge::BackToFrontMsg::LoginResponse(bluesky_login_response, profile, feeds) => {
                     self.profile = profile;
                     match bluesky_login_response {
-                        crate::backend::main::BlueskyLoginResponse::Success(_, _) => {
+                        crate::backend::main::BlueskyLoginResponse::Success(inf) => {
                             self.active = true;
                             self.authenticated = true;
-                            self.view_stack.set(FrontendMainView::Timeline(FrontendTimelineView::new()));
+                            self.view_stack.set(FrontendMainView::Timeline(FrontendTimelineView::new(feeds)));
                             self.modal.close();
                         }
                         crate::backend::main::BlueskyLoginResponse::Info(variant) => match variant {
@@ -46,13 +46,29 @@ impl ClientFrontend {
                 crate::bridge::BackToFrontMsg::TimelineResponse(tl) => match tl {
                     Ok(tl) => {
                         //TODO: FIX
+                        if tl.feed.len() <= 0 {
+                            println!("tl was empty for some reason???");
+                        } else {
+                            println!("tl has {} skeets", tl.feed.len());
+                        }
                         if let Some(page) = self.view_stack.top() {
                             match page {
                                 FrontendMainView::Timeline(ref mut data) => {
-                                    data.timeline_cursor = tl.cursor;
-                                    for post in tl.feed {
-                                        data.timeline.push(post);
+                                    if data.feed == 0 {
+                                        data.timeline.cursor = tl.cursor;
+                                        for post in tl.feed {
+                                            data.timeline.feed.push(post);
+                                        }
+                                    } else {
+                                        if let Some(feed) = data.feeds.get_mut(data.feed - 1) {
+                                            feed.1.cursor = tl.cursor;
+                                            for post in tl.feed {
+                                                feed.1.feed.push(post);
+                                            }    
+                                        }
+                                        
                                     }
+                                    
                                 }
                                 _ => println!("fix this :)"),
                             }

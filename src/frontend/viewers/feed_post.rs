@@ -11,7 +11,7 @@ use crate::{
 use egui::{
     pos2,
     text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder,
+    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder, Widget,
 };
 
 use super::post::post_viewer;
@@ -26,28 +26,28 @@ pub fn feed_post_viewer(ui: &mut Ui, post: &FeedViewPost, backend: &Bridge, img_
             if let Some(reason) = &post.reason {
                 match reason {
                     Reason::Repost(repost) => {
-                        name.weak("\u{E201} Reposted by ");
+                        egui::Label::new(egui::RichText::new("\u{E201} Reposted by ").weak()).selectable(false).ui(name);
                         if name.link(egui::RichText::new(repost.by.easy_name()).color(name.visuals().weak_text_color())).clicked() {
                             new_view.set(FrontendMainView::Profile(FrontendProfileView::new(repost.by.did.clone())));
                         }
                     }
                     Reason::Pin => {
-                        name.weak("Pinned");
+                        egui::Label::new(egui::RichText::new("\u{E141} Pinned").weak()).selectable(false).ui(name);
                     }
                 }
             } else if let Some(reply) = &post.reply {
                 match &reply.parent {
                     RelatedPostVariant::Post(post) => {
-                        name.weak("\u{E200} Replying to ");
+                        egui::Label::new(egui::RichText::new("\u{E200} Replying to ").weak()).selectable(false).ui(name);
                         if name.link(egui::RichText::new(post.author.easy_name()).color(name.visuals().weak_text_color())).clicked() {
                             new_view.set(FrontendMainView::Profile(FrontendProfileView::new(post.author.did.clone())));
                         }
                     }
                     RelatedPostVariant::NotFound(_) => {
-                        name.weak("\u{E200} Replying to an unknown post");
+                        egui::Label::new(egui::RichText::new("\u{E200} Replying to an unknown post").weak()).selectable(false).ui(name);
                     }
                     RelatedPostVariant::Blocked(_) => {
-                        name.weak("\u{E200} Replying to a blocked post");
+                        egui::Label::new(egui::RichText::new("\u{E200} Replying to a blocked post").weak()).selectable(false).ui(name);
                     }
                 }
             }
