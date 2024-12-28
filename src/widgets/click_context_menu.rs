@@ -78,8 +78,10 @@ pub fn click_context_menu(response: egui::Response, add_contents: impl FnOnce(&m
         writer.get_temp::<MetroContextMenu>(id)
     });
 
-    //doesn't exist, wasn't requested to exist
+    // doesn't exist, wasn't requested to exist
     if data.is_none() && !response.clicked() { return None; }
+    // clicked when exists, close
+    if response.clicked() && data.is_some() { response.ctx.data_mut(|writer| { writer.remove::<MetroContextMenu>(id); }); return None; }
     // either already exists or was requested to exist
     let data = if response.clicked() { MetroContextMenu::new(&response) } else { data.unwrap() };
 

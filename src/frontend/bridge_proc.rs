@@ -49,11 +49,6 @@ impl ClientFrontend {
                 crate::bridge::BackToFrontMsg::TimelineResponse(tl) => match tl {
                     Ok(tl) => {
                         //TODO: FIX
-                        if tl.feed.len() <= 0 {
-                            println!("tl was empty for some reason???");
-                        } else {
-                            println!("tl has {} skeets", tl.feed.len());
-                        }
                         if let Some(page) = self.view_stack.top() {
                             match page {
                                 FrontendMainView::Timeline(ref mut data) => {

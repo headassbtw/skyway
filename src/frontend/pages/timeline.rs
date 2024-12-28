@@ -96,7 +96,7 @@ impl FrontendTimelineView {
             
         });
         
-        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt("FrontendTimelineViewMainVerticalScroller").max_height(ui.cursor().height()).show(ui, |tl| {
+        ScrollArea::vertical().hscroll(false).max_width(ui.cursor().width()).id_salt(self.feed).max_height(ui.cursor().height()).show(ui, |tl| {
             // keyboard nav polling
             let (scrolling, scroll_to) = {
                 puffin::profile_scope!("Keyboard nav part A");
@@ -220,8 +220,14 @@ impl FrontendTimelineView {
         }
 
         if refresh_button.clicked() {
-            self.timeline.cursor = Some(String::new());
-            self.timeline.feed.clear();
+            let feed = if self.feed == 0 {
+                &mut self.timeline
+            } else {
+                &mut self.feeds.get_mut(self.feed - 1).unwrap().1
+            };
+
+            feed.cursor = Some(String::new());
+            feed.feed.clear();
         }
 
         ViewStackReturnInfo {
