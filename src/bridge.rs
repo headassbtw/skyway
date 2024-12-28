@@ -29,6 +29,7 @@ pub enum FrontToBackMsg {
 }
 
 pub enum BackToFrontMsg {
+    BackendError(String),
     LoginResponse(BlueskyLoginResponse, Option<ProfileViewDetailed>, Vec<GeneratorView>),
     TimelineResponse(Result<FeedCursorPair, BlueskyApiError>),
     KeyringFailure(String),
@@ -89,8 +90,6 @@ impl Bridge {
                 //TODO: USE PREFS!
                 let gen_views: Vec<GeneratorView> = match api.get_preferences().await {
                     Ok(ok) => {
-                        println!("got prefs!");
-                        println!("{:?}", ok);
                         let feeds:Vec<String> = {
                             let mut feeds = Vec::new();
                             for pref in ok {
@@ -109,15 +108,13 @@ impl Bridge {
                         match api.get_feed_generators(feeds).await {
                             Ok(ok) => ok,
                             Err(err) => {
-                                println!("feeds failed boowomp");
-                                print!("{:?}", err);
+                                tx.send(BackToFrontMsg::BackendError(format!("Feed generator pull failed.\n{:?}", err)))?;
                                 Vec::new()
                             },
                         }
                     },
                     Err(err) => {
-                        println!("prefs failed boowomp");
-                        print!("{:?}", err);
+                        tx.send(BackToFrontMsg::BackendError(format!("Preferences pull failed.\n{:?}", err)))?;
                         Vec::new()
                     },
                 };

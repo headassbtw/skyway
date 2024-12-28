@@ -7,6 +7,9 @@ impl ClientFrontend {
 		if let Ok(proc) = self.backend.frontend_listener.try_recv() {
             puffin::profile_scope!("Bridge processing");
             match proc {
+                crate::bridge::BackToFrontMsg::BackendError(err) => {
+                    self.info_modal("Backend Error", &err);
+                }
                 crate::bridge::BackToFrontMsg::LoginResponse(bluesky_login_response, profile, feeds) => {
                     self.profile = profile;
                     match bluesky_login_response {
