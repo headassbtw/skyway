@@ -41,9 +41,12 @@ impl ClientBackend {
         if let Err(err) = parse {
             return Err(BlueskyApiError::ParseError(err, req));
         }
-        let parse = parse.unwrap();
+        let mut res = parse.unwrap();
+        for post in res.feed.iter_mut() {
+            post.post = self.deduplicate_post(&mut post.post);
+        };
 
-        return Ok(parse);
+        return Ok(res);
     }
 
     /// Get private preferences attached to the current account. Expected use is synchronization between multiple devices, and import/export during account migration. Requires auth.

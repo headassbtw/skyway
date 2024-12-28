@@ -1,7 +1,7 @@
 use std::{sync::{Arc, Mutex}};
 
 use crate::{
-    backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::PostView, ReplyRef, StrongRef}}, frontend::{
+    backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{
@@ -65,6 +65,26 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     }
 
     clicker
+}
+
+pub fn blocked_post(ui: &mut Ui, info: &BlockedPost, new_view: &mut MainViewProposition) -> Response {
+    ui.painter().text(ui.cursor().min + vec2(18.0, 16.0), Align2::CENTER_CENTER, "\u{E181}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
+    let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Blocked", FontId::proportional(20.0), ui.visuals().weak_text_color());
+
+    let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+    ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+
+    if res.clicked() { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(info.author.did.clone()))); }
+    res
+}
+
+pub fn not_found_post(ui: &mut Ui) -> Response {
+    ui.painter().text(ui.cursor().min + vec2(18.0, 14.0), Align2::CENTER_CENTER, "\u{E283}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
+    let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Deleted Post", FontId::proportional(20.0), ui.visuals().weak_text_color());
+
+    let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click());
+    ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+    res        
 }
 
 pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
@@ -152,13 +172,13 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 if let Some(facets) = &post.record.facets && facets.len() > 0 {
                     puffin::profile_scope!("facets/richtext");
                     post_contents.horizontal_wrapped(|ui| {
-                        ui.spacing_mut().item_spacing.x = 2.0;
+                        ui.spacing_mut().item_spacing.x = 0.0;
                         ui.style_mut().visuals.override_text_color = Some(ui.visuals().noninteractive().fg_stroke.color);
 
                         let mut prev: usize = 0;
                         for (idx, facet) in facets.iter().enumerate() {
                             if prev < facet.index.byte_start {
-                                if ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start-1]).font(font_id.clone()))).clicked() {
+                                if ui.add(egui::Label::new(egui::RichText::new(&post.record.text[prev..facet.index.byte_start]).font(font_id.clone()))).clicked() {
                                     view_thread = true;
                                 }
                             }

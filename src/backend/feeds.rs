@@ -57,8 +57,13 @@ impl ClientBackend {
         if let Err(err) = res {
             return Err(BlueskyApiError::ParseError(err, req));
         }
+        
+        let mut res = res.unwrap();
+        for post in res.feed.iter_mut() {
+            post.post = self.deduplicate_post(&mut post.post);
+        };
 
-        Ok(res.unwrap())
+        Ok(res)
     }
 
     /// Get information about a list of feed generators.

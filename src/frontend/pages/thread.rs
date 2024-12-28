@@ -24,26 +24,14 @@ impl FrontendThreadView {
 
 impl FrontendThreadView {
     fn render_blocked(ui: &mut Ui, info: &BlockedPost, new_view: &mut MainViewProposition) -> Response {
-        ui.painter().text(ui.cursor().min + vec2(18.0, 16.0), Align2::CENTER_CENTER, "\u{E181}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
-        let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Blocked", FontId::proportional(20.0), ui.visuals().weak_text_color());
-
-        let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+        let res = crate::frontend::viewers::post::blocked_post(ui, info, new_view);
         ui.painter().line_segment([pos2(res.rect.left() + 30.0, res.rect.bottom() + 1.0), pos2(res.rect.left() + 30.0, res.rect.bottom() + ui.spacing().item_spacing.y / 2.0)], Stroke::new(2.0, ui.visuals().weak_text_color()));
-
-        if res.clicked() { new_view.set(super::FrontendMainView::Profile(FrontendProfileView::new(info.author.did.clone()))); }
-
         res
     }
 
     fn render_not_found(ui: &mut Ui) -> Response {
-        ui.painter().text(ui.cursor().min + vec2(18.0, 14.0), Align2::CENTER_CENTER, "\u{E283}", FontId::new(20.0, egui::FontFamily::Name("Segoe Symbols".into())), ui.visuals().weak_text_color());
-        let rect = ui.painter().text(ui.cursor().min + vec2(36.0, 28.0), Align2::LEFT_BOTTOM, "Deleted Post", FontId::proportional(20.0), ui.visuals().weak_text_color());
-
-        let res = ui.allocate_response(vec2(rect.width() + 42.0, 36.0), egui::Sense::click());
-        ui.painter().rect(res.rect, Rounding::ZERO, Color32::TRANSPARENT, Stroke::new(2.0, ui.visuals().weak_text_color()));
+        let res = crate::frontend::viewers::post::not_found_post(ui);
         ui.painter().line_segment([pos2(res.rect.left() + 30.0, res.rect.bottom() + 1.0), pos2(res.rect.left() + 30.0, res.rect.bottom() + ui.spacing().item_spacing.y / 2.0)], Stroke::new(2.0, ui.visuals().weak_text_color()));
-
         res
     }
 

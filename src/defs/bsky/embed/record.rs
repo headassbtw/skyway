@@ -11,9 +11,9 @@ pub enum Variant {
     #[serde(rename = "app.bsky.embed.record#viewRecord")]
     Record(Record),
     #[serde(rename = "app.bsky.embed.record#viewNotFound")]
-    NotFound(NotFound),
+    NotFound(crate::defs::bsky::feed::defs::NotFoundPost),
     #[serde(rename = "app.bsky.embed.record#viewBlocked")]
-    Blocked(Blocked),
+    Blocked(crate::defs::bsky::feed::defs::BlockedPost),
     #[serde(rename = "app.bsky.embed.record#viewDetached")]
     Detached(Detached),
     #[serde(rename = "app.bsky.feed.defs#generatorView")]
@@ -47,21 +47,6 @@ pub struct Record {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embeds: Option<serde_json::Value>,
     pub indexed_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct NotFound {
-    pub uri: String,
-    pub not_found: bool,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct Blocked {
-    pub uri: String,
-    pub blocked: bool,
-    pub author: crate::defs::bsky::feed::defs::BlockedAuthor,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

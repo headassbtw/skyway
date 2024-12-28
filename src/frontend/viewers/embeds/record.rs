@@ -78,11 +78,11 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                         embed.allocate_space(vec2(0.0, 0.0));
                     });
                 }
-                embed::record::Variant::NotFound(_) => {
-                    embed.weak("Not Found");
+                embed::record::Variant::NotFound(info) => {
+                    crate::frontend::viewers::post::not_found_post(embed);
                 }
-                embed::record::Variant::Blocked(_) => {
-                    embed.weak("Blocked");
+                embed::record::Variant::Blocked(info) => {
+                    crate::frontend::viewers::post::blocked_post(embed, info, new_view);
                 }
                 embed::record::Variant::Detached(_) => {
                     embed.weak("Detached Record");

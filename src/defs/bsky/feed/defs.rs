@@ -131,14 +131,14 @@ pub struct ThreadViewPost {
     pub replies: Option<Vec<ThreadPostVariant>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct NotFoundPost {
     pub uri: String,
     pub not_found: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct BlockedPost {
     pub uri: String,
