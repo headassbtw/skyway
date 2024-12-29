@@ -1,48 +1,19 @@
-use std::sync::Arc;
-
-use crate::defs::bsky::feed::StrongRef;
+use crate::defs::bsky::richtext::{facet::Link, Facet, Feature, Index};
 
 use super::{BlueskyApiError, ClientBackend};
-use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct BlueskyApiRecordPost {
-    pub text: String,
-    pub created_at: DateTime<Utc>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub facets: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub reply: Option<crate::defs::bsky::feed::ReplyRef>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<Arc<crate::defs::bsky::embed::Variant>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub langs: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub labels: Option<serde_json::Value>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<String>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct BlueskyApiRecordLike {
-    pub subject: StrongRef,
-    pub created_at: DateTime<Utc>,
-}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 #[serde(tag = "$type")]
 pub enum BlueskyApiRecord {
     #[serde(rename = "app.bsky.feed.post")]
-    Post(BlueskyApiRecordPost),
+    Post(crate::defs::bsky::feed::Post),
     #[serde(rename = "app.bsky.feed.like")]
-    Like(BlueskyApiRecordLike),
+    Like(crate::defs::bsky::feed::Like),
     #[serde(rename = "app.bsky.feed.repost")]
-    Repost(BlueskyApiRecordLike),
+    Repost(crate::defs::bsky::feed::Like),
 }
 
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -86,12 +57,58 @@ struct DeleteRecordRequest {
     pub rkey: String,
 }
 
+fn link_detector(text: String) -> Vec<Facet> {
+    let mut rtn = Vec::new();
+    let mut start_idx: usize = 0;
+    'find: loop {
+        let detect =                       text[start_idx..].find("https://");
+        let detect = if detect.is_none() { text[start_idx..].find("http://")  } else { detect };
+        let detect = if detect.is_none() { text[start_idx..].find("steam://") } else { detect }; // lol
+        if let Some(start) = detect {
+            let start_absolute = start + start_idx;
+            let end_absolute = if let Some(end) = text[start_absolute..].find([' ', ')', '\0','\n']) {
+                start_absolute + end
+            } else { text.len() };
+
+            let facet = Facet {
+                features: {
+                    let mut rtn = Vec::new();
+                    rtn.push(Feature::Link(Link {
+                        uri: text[start_absolute..end_absolute].to_string(),
+                    }));
+                    rtn
+                },
+                index: Index {
+                    byte_start: start_absolute,
+                    byte_end: end_absolute,
+                },
+            };
+            rtn.push(facet);
+            start_idx = end_absolute;
+        } else {
+            break 'find;
+        }
+    }
+
+    rtn
+}
+
 impl ClientBackend {
     pub async fn create_record(&mut self, record: BlueskyApiRecord) -> Result<BlueskyApiCreateRecordResponse, BlueskyApiError> {
-        let nsid = match record {
-            BlueskyApiRecord::Post(_) => "app.bsky.feed.post",
-            BlueskyApiRecord::Like(_) => "app.bsky.feed.like",
-            BlueskyApiRecord::Repost(_) => "app.bsky.feed.repost",
+        let (nsid, record) = match record {
+            BlueskyApiRecord::Post(post) => {
+                let post = if post.facets.is_some() {
+                    post
+                } else {
+                    let mut post = post;
+                    post.facets = Some(link_detector(post.text.clone()));
+                    post
+                };
+                
+                ("app.bsky.feed.post", BlueskyApiRecord::Post(post))
+            },
+            BlueskyApiRecord::Like(_) => ("app.bsky.feed.like", record),
+            BlueskyApiRecord::Repost(_) => ("app.bsky.feed.repost", record),
         };
 
         let contents = CreateRecordRequest { repo: self.did.clone(), collection: nsid.to_owned(), record };

@@ -1,6 +1,5 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Rect, Response, Rounding, ScrollArea, Stroke, Ui};
+use egui::{pos2, vec2, Response, Rounding, ScrollArea, Stroke, Ui};
 
-use super::profile::FrontendProfileView;
 use super::{MainViewProposition, ViewStackReturnInfo};
 use crate::bridge::FrontToBackMsg;
 use crate::defs::bsky::feed::defs::{BlockedPost, ThreadPostVariant};

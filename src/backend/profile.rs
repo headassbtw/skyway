@@ -1,4 +1,4 @@
-use crate::defs::{self, bsky::{actor::defs::Preference, feed::defs::{FeedCursorPair, FeedViewPost}}};
+use crate::defs::{self, bsky::{actor::defs::Preference, feed::defs::FeedCursorPair}};
 
 use super::{BlueskyApiError, ClientBackend};
 

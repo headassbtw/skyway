@@ -1,10 +1,9 @@
 use egui::{
-    menu::{BarState, MenuRoot}, pos2, style::{WidgetVisuals, Widgets}, vec2, Color32, FontId, Id, InnerResponse, Margin, Rounding, Spacing, Stroke, Vec2, Vec2b, Visuals
+    pos2, style::{WidgetVisuals, Widgets}, vec2, Color32, Id, InnerResponse, Margin, Rounding, Spacing, Stroke, Vec2, Vec2b, Visuals
 };
 #[derive(Clone)]
 struct MetroContextMenu {
     pub origin: egui::Pos2,
-    pub enabled: bool,
     pub visuals: Visuals,
     pub spacing: Spacing,
 }
@@ -13,7 +12,6 @@ impl MetroContextMenu {
     fn new(res: &egui::Response) -> Self {
         MetroContextMenu {
             origin: res.rect.min,
-            enabled: true,
             visuals: Visuals {
                 widgets: Widgets {
                     
@@ -87,7 +85,7 @@ pub fn click_context_menu(response: egui::Response, add_contents: impl FnOnce(&m
 
     let frame = egui::containers::Frame::default().fill(Color32::WHITE).rounding(Rounding::ZERO).stroke(Stroke::new(2.0, Color32::BLACK)).inner_margin(Margin::symmetric(0.0, 8.0));
 
-    let window = egui::Window::new("")
+    egui::Window::new("")
     .frame(frame)
     .title_bar(false)
     .movable(false).auto_sized()

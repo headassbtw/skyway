@@ -1,10 +1,18 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Rect, Rounding, Stroke, UiBuilder};
+use egui::{pos2, Align2, Color32, FontId, Rect, Rounding};
 
-use crate::{defs::bsky::embed::video, frontend::pages::{media::{video::FrontendMediaVideoView, FrontendMediaViewVariant}, FrontendMainView, MainViewProposition}, image::{ImageCache, LoadableImage}, open_in_browser, BSKY_BLUE};
+use crate::{
+    defs::bsky::embed::video,
+    frontend::pages::{
+        media::{video::FrontendMediaVideoView, FrontendMediaViewVariant},
+        FrontendMainView, MainViewProposition,
+    },
+    image::{ImageCache, LoadableImage},
+    BSKY_BLUE,
+};
 
 pub fn view_video(ui: &mut egui::Ui, video: &video::View, media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
-	puffin::profile_function!();
-	let video_rect = ui.cursor().with_max_y(ui.cursor().top() + media_size);
+    puffin::profile_function!();
+    let video_rect = ui.cursor().with_max_y(ui.cursor().top() + media_size);
     if !ui.is_rect_visible(video_rect) {
         puffin::profile_scope!("Video Short-Circuit");
         return ui.allocate_rect(video_rect, egui::Sense::click());

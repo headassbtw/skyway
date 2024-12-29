@@ -1,17 +1,15 @@
 use egui::{pos2, style::HandleShape, vec2, Align2, Button, Color32, FontFamily, FontId, Id, LayerId, Layout, Margin, Rect, Rounding, Shadow, Stroke, TextStyle, UiBuilder, UiStackInfo};
-use std::{collections::BTreeMap, sync::{Arc, Mutex}};
-
-use crate::{
-    backend::{
-        main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
-        BlueskyApiError,
-    }, bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, settings::Settings, widgets::spinner::SegoeBootSpinner, BSKY_BLUE
+use std::{
+    collections::BTreeMap,
+    sync::{Arc, Mutex},
 };
+
+use crate::{backend::BlueskyApiError, bridge::Bridge, defs::bsky::actor::defs::ProfileViewDetailed, image::ImageCache, settings::Settings, widgets::spinner::SegoeBootSpinner, BSKY_BLUE};
 
 use super::{
     flyouts::composer::ComposerFlyout,
     modals::important_error::ImportantErrorModal,
-    pages::{timeline::FrontendTimelineView, FrontendMainView, FrontendMainViewStack},
+    pages::{FrontendMainView, FrontendMainViewStack},
 };
 #[derive(serde::Deserialize, serde::Serialize)]
 pub enum ClientFrontendPage {
@@ -164,11 +162,7 @@ impl ClientFrontend {
 
         cc.egui_ctx.set_fonts(fonts);
 
-        let settings: Settings = if let Some(storage) = cc.storage {
-            eframe::get_value(storage, "Settings").unwrap_or_default()
-        } else {
-            Settings::default()
-        };
+        let settings: Settings = if let Some(storage) = cc.storage { eframe::get_value(storage, "Settings").unwrap_or_default() } else { Settings::default() };
         let settings = Arc::new(Mutex::new(settings));
 
         Self {
@@ -183,7 +177,7 @@ impl ClientFrontend {
             authenticated: false,
             profile: None,
             view_stack: FrontendMainViewStack::new(cc.egui_ctx.clone(), FrontendMainView::Login()),
-            settings
+            settings,
         }
     }
 }
@@ -231,13 +225,15 @@ impl ClientFrontend {
 
     pub fn error_modal(&mut self, heading: &str, err: BlueskyApiError) {
         let body = match err {
-            BlueskyApiError::BadRequest(err) =>     format!("Bad Request\n{}\n{}", err.error, err.message),
-            BlueskyApiError::Unauthorized(err) =>   format!("Unauthorized\n{}\n{}", err.error, err.message),
+            BlueskyApiError::BadRequest(err) => format!("Bad Request\n{}\n{}", err.error, err.message),
+            BlueskyApiError::Unauthorized(err) => format!("Unauthorized\n{}\n{}", err.error, err.message),
             BlueskyApiError::NetworkError(err) => {
                 let cause = if err.is_status() {
                     if let Some(code) = err.status() {
                         &format!("{}", code.as_str())
-                    } else { "Unknown HTTP code" }
+                    } else {
+                        "Unknown HTTP code"
+                    }
                 } else if err.is_timeout() {
                     "Request timed out"
                 } else if err.is_request() {
@@ -248,11 +244,11 @@ impl ClientFrontend {
                     "Invalid request/response"
                 } else if err.is_decode() {
                     "Failure decoding response"
-                }  else {
+                } else {
                     "Unknown cause"
                 };
                 format!("Network Error\n{}\n\n{}\n\nI have no clue what causes this. It's always a fluke, try again and it will likely work. If it doesn't, then it's actually an issue.", cause, err)
-            },
+            }
             BlueskyApiError::ParseError(err, jason) => {
                 let t = match err.classify() {
                     serde_json::error::Category::Io => "I/O",
@@ -263,12 +259,7 @@ impl ClientFrontend {
                 let guh = jason.split("\n");
                 let mut push = String::new();
                 for (pos, i) in guh.into_iter().enumerate() {
-                    let qualifier =
-                    if err.line() > 21 {
-                        true
-                    } else {
-                        pos >= err.line() - 10 && pos <= err.line() + 10
-                    };
+                    let qualifier = if err.line() > 21 { true } else { pos >= err.line() - 10 && pos <= err.line() + 10 };
                     if qualifier {
                         push.push_str(i);
                         push.push('\n');
@@ -277,7 +268,7 @@ impl ClientFrontend {
 
                 //let guh2 = guh[(err.column()-1)..(err.column()+1)];
                 format!("Parser {t} error\n{:?}\n{}", err, push)
-            },
+            }
             BlueskyApiError::NotImplemented => "Not Implemented".into(),
         };
         self.modal.set(ClientFrontendModalVariant::ImportantErrorModal(ImportantErrorModal::new(heading.into(), body.into())));
@@ -369,7 +360,7 @@ impl eframe::App for ClientFrontend {
                             ui.weak("Backend working...");
                         }
                     }
-                    
+
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.menu_button("Debug Build", |ui| {
                             ui.style_mut().spacing.item_spacing.y = 0.0;
@@ -390,7 +381,9 @@ impl eframe::App for ClientFrontend {
                                 self.flyout.set(ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
                             }
                             if ui.add_enabled(self.authenticated, Button::new("Clear Persistence")).clicked() {
-                                ui.ctx().data_mut(|map| { map.clear(); });
+                                ui.ctx().data_mut(|map| {
+                                    map.clear();
+                                });
                             }
                         });
                     });

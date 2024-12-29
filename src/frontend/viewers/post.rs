@@ -1,7 +1,8 @@
 use std::{sync::{Arc, Mutex}};
 
 use crate::{
-    backend::record::BlueskyApiRecordLike, bridge::Bridge, defs::bsky::{embed, feed::{defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
+    defs::bsky::feed,
+    bridge::Bridge, defs::bsky::{embed, feed::{defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
         flyouts::composer::ComposerFlyout,
         main::ClientFrontendFlyout,
         pages::{
@@ -14,7 +15,7 @@ use crate::{
 
 use chrono::Utc;
 use egui::{
-    pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder, WidgetRect
+    pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder
 };
 
 fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyph: &str, count: usize, color: Option<Color32>) -> Response {
@@ -40,7 +41,6 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     let clicker =ui.add_enabled_ui(enabled, |ui| {
         ui.interact(rtn.with_max_x(rtn.min.x + size + text_width), Id::new(id), egui::Sense::click())
     }).inner;
-    
 
     {
         puffin::profile_scope!("Animation");
@@ -341,7 +341,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
     if let Some(repost) = repost {
         if repost {
-            let record = crate::backend::record::BlueskyApiRecord::Repost(BlueskyApiRecordLike { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Repost(feed::Like { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
             if let Some(viewer) = &post.viewer {
@@ -354,7 +354,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
     if let Some(like) = like {
         if like {
-            let record = crate::backend::record::BlueskyApiRecord::Like(BlueskyApiRecordLike { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
+            let record = crate::backend::record::BlueskyApiRecord::Like(feed::Like { subject: StrongRef { uri: post.uri.clone(), cid: post.cid.clone() }, created_at: Utc::now() });
             backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordUnderPostRequest(record, post_og.clone())).unwrap();
         } else {
             if let Some(viewer) = &post.viewer {

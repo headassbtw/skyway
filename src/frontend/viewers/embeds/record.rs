@@ -1,13 +1,20 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Id, Layout, Rect, Rounding, Stroke, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, Stroke, UiBuilder};
 
-use crate::{defs::bsky::embed, frontend::{pages::{thread::FrontendThreadView, FrontendMainView, MainViewProposition}, viewers::offset_time}, image::{ImageCache, LoadableImage}, widgets::spinner::SegoeBootSpinner, BSKY_BLUE};
+use crate::{
+    defs::bsky::embed,
+    frontend::{
+        pages::{thread::FrontendThreadView, FrontendMainView, MainViewProposition},
+        viewers::offset_time,
+    },
+    image::{ImageCache, LoadableImage},
+    widgets::spinner::SegoeBootSpinner,
+    BSKY_BLUE,
+};
 
-use super::images::view_images;
-
-pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record::Variant, media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
+pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record::Variant, _media_size: f32, img_cache: &ImageCache, new_view: &mut MainViewProposition) -> egui::Response {
     puffin::profile_function!();
     let content_rect = ui.cursor().shrink(5.0);
-	let resp = ui.allocate_new_ui(UiBuilder::default().max_rect(content_rect), |quote| {
+    let resp = ui.allocate_new_ui(UiBuilder::default().max_rect(content_rect), |quote| {
         quote.with_layout(Layout::left_to_right(egui::Align::Min), |embed| {
             embed.spacing_mut().item_spacing.x = 8.0;
             embed.spacing_mut().item_spacing.y = 4.0;
@@ -16,7 +23,9 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                     embed.with_layout(Layout::top_down(egui::Align::Min), |embed| {
                         embed.with_layout(Layout::left_to_right(egui::Align::Min), |name| 'render_name: {
                             let pfp_rect = name.allocate_space(vec2(30.0, 30.0)).1;
-                            if !name.is_rect_visible(pfp_rect) { break 'render_name; }
+                            if !name.is_rect_visible(pfp_rect) {
+                                break 'render_name;
+                            }
                             if let Some(avatar) = &record.author.avatar {
                                 match img_cache.get_image(avatar) {
                                     LoadableImage::Unloaded | LoadableImage::Loading => {
@@ -37,7 +46,9 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
                             name.style_mut().wrap_mode = Some(egui::TextWrapMode::Truncate);
 
                             // just gonna manually lay out the text here. It's a bit messy but so is the alternative
-                            if let Some(dn) = &record.author.display_name && dn.len() > 0 {
+                            if let Some(dn) = &record.author.display_name
+                                && dn.len() > 0
+                            {
                                 let dn_galley = name.painter().layout(dn.to_string(), FontId::proportional(15.0), name.style().visuals.text_color(), content_rect.width() - (30.0 + time_galley.rect.width() + (name.spacing().item_spacing.x * 2.0)));
                                 let handle_galley = name.painter().layout(record.author.handle.clone(), FontId::new(15.0, seglight.clone()), name.style().visuals.weak_text_color(), content_rect.width() - (30.0 + dn_galley.rect.width() + time_galley.rect.width() + (name.spacing().item_spacing.x * 3.0)));
 
@@ -46,7 +57,7 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
 
                                 name.painter().circle_filled(pos2(pfp_rect.max.x + dn_galley.rect.width() + handle_galley.rect.width() + name.spacing().item_spacing.x * 3.0, pfp_rect.center().y), 2.0, Color32::DARK_GRAY);
                                 name.painter().galley(pos2(pfp_rect.max.x + dn_galley.rect.width() + handle_galley.rect.width() + name.spacing().item_spacing.x * 4.0, pfp_rect.max.y - 25.0), time_galley, Color32::DARK_GRAY);
-                                
+
                                 name.painter().galley(pfp_rect.max + vec2((name.spacing().item_spacing.x * 2.0) + dn_galley.rect.width(), -27.0), handle_galley, name.style().visuals.weak_text_color());
                                 name.painter().galley(pfp_rect.max + vec2(name.spacing().item_spacing.x, -27.0), dn_galley, name.style().visuals.text_color());
                             } else {
@@ -57,28 +68,27 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
 
                                 name.painter().circle_filled(pos2(pfp_rect.max.x + handle_galley.rect.width() + name.spacing().item_spacing.x * 2.0, pfp_rect.center().y), 2.0, Color32::DARK_GRAY);
                                 name.painter().galley(pos2(pfp_rect.max.x + handle_galley.rect.width() + name.spacing().item_spacing.x * 3.0, pfp_rect.max.y - 25.0), time_galley, Color32::DARK_GRAY);
-                                
-                                name.painter().galley(pfp_rect.max + vec2((name.spacing().item_spacing.x * 2.0), -27.0), handle_galley, name.style().visuals.text_color());
-                            }
 
+                                name.painter().galley(pfp_rect.max + vec2(name.spacing().item_spacing.x * 2.0, -27.0), handle_galley, name.style().visuals.text_color());
+                            }
                         });
 
                         match &record.value {
                             crate::backend::record::BlueskyApiRecord::Post(post) => {
                                 if post.text.len() > 0 {
-                                    embed.add(egui::Label::new(format!("{}", post.text)).selectable(false));    
+                                    embed.add(egui::Label::new(format!("{}", post.text)).selectable(false));
                                 }
 
-                                if let Some(val) = &post.embed {
+                                if let Some(_) = &post.embed {
                                     embed.weak("Post has an embed");
                                 }
-                            },
-                            _ => {},
+                            }
+                            _ => {}
                         }
                         embed.allocate_space(vec2(0.0, 0.0));
                     });
                 }
-                embed::record::Variant::NotFound(info) => {
+                embed::record::Variant::NotFound(_) => {
                     crate::frontend::viewers::post::not_found_post(embed);
                 }
                 embed::record::Variant::Blocked(info) => {
@@ -107,8 +117,8 @@ pub fn view_record(ui: &mut egui::Ui, record: &crate::defs::bsky::embed::record:
         match record {
             embed::record::Variant::Record(record) => {
                 new_view.set(FrontendMainView::Thread(FrontendThreadView::new(record.uri.clone())));
-            },
-            _ => {},
+            }
+            _ => {}
         }
     }
 

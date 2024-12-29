@@ -1,10 +1,16 @@
-use crate::{backend::{feeds::ActorFeedsResponse, main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo}}, frontend::{main::{ClientFrontendFlyoutVariant, ClientFrontendModalVariant}, pages::{timeline::FrontendTimelineView, FrontendMainView}}};
+use crate::{
+    backend::main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
+    frontend::{
+        main::{ClientFrontendFlyoutVariant, ClientFrontendModalVariant},
+        pages::{timeline::FrontendTimelineView, FrontendMainView},
+    },
+};
 
 use super::main::ClientFrontend;
 
 impl ClientFrontend {
-	pub fn proc(&mut self) {
-		if let Ok(proc) = self.backend.frontend_listener.try_recv() {
+    pub fn proc(&mut self) {
+        if let Ok(proc) = self.backend.frontend_listener.try_recv() {
             puffin::profile_scope!("Bridge processing");
             match proc {
                 crate::bridge::BackToFrontMsg::BackendError(err) => {
@@ -13,7 +19,7 @@ impl ClientFrontend {
                 crate::bridge::BackToFrontMsg::LoginResponse(bluesky_login_response, profile, feeds) => {
                     self.profile = profile;
                     match bluesky_login_response {
-                        crate::backend::main::BlueskyLoginResponse::Success(inf) => {
+                        crate::backend::main::BlueskyLoginResponse::Success(_) => {
                             self.active = true;
                             self.authenticated = true;
                             self.view_stack.set(FrontendMainView::Timeline(FrontendTimelineView::new(feeds)));
@@ -62,18 +68,16 @@ impl ClientFrontend {
                                             feed.1.cursor = tl.cursor;
                                             for post in tl.feed {
                                                 feed.1.feed.push(post);
-                                            }    
+                                            }
                                         }
-                                        
                                     }
-                                    
                                 }
                                 _ => println!("fix this :)"),
                             }
                         }
                     }
                     Err(err) => self.error_modal("Failed to get timeline", err),
-                }
+                },
                 crate::bridge::BackToFrontMsg::KeyringFailure(reason) => self.info_modal("OS Keyring Failure", &reason),
                 crate::bridge::BackToFrontMsg::RecordCreationResponse(data) => match data {
                     Ok(_) => {
@@ -87,7 +91,17 @@ impl ClientFrontend {
                             }
                         }
                     }
-                    Err(err) => self.error_modal("Failed to create record", err),
+                    Err(err) => {
+                        // if we fail a send, don't make the user re-type it (ask me how i know)
+                        if let Some(flyout) = &mut self.flyout.main {
+                            match flyout {
+                                ClientFrontendFlyoutVariant::PostComposerFlyout(flyout) => {
+                                    flyout.sending = false;
+                                }
+                            }
+                        }
+                        self.error_modal("Failed to create record", err)
+                    }
                 },
                 crate::bridge::BackToFrontMsg::ProfileResponse(id, profile) => {
                     if let Some(page) = self.view_stack.top() {
@@ -98,11 +112,11 @@ impl ClientFrontend {
                                         Ok(profile) => {
                                             data.profile_data = Some(profile);
                                             data.loading = false;
-                                        },
+                                        }
                                         Err(err) => self.error_modal("Failed to get profile", err),
                                     }
                                 }
-                            },
+                            }
                             _ => println!("bridge target missed"),
                         }
                     }
@@ -125,12 +139,12 @@ impl ClientFrontend {
                                         Err(err) => self.error_modal("Failed to get thread", err),
                                     }
                                 }
-                            },
+                            }
                             _ => println!("fix this, use a callback for thread responses pleeeeeeeeeeease"),
                         }
                     }
                 }
             }
         }
-	}
+    }
 }

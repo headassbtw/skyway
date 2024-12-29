@@ -1,7 +1,7 @@
 pub mod image;
 pub mod video;
 
-use egui::{pos2, vec2, Align2, Color32, FontId, Rounding, UiBuilder};
+use egui::{pos2, vec2, Align2, Color32, FontId, Rounding};
 use image::FrontendMediaImageView;
 use video::FrontendMediaVideoView;
 
@@ -15,7 +15,7 @@ pub enum FrontendMediaViewVariant {
 }
 
 impl FrontendMediaViewVariant {
-    pub fn render(&mut self, ui: &mut egui::Ui, image: &ImageCache, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
+    pub fn render(&mut self, ui: &mut egui::Ui, image: &ImageCache, _new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         ui.painter().rect_filled(ui.ctx().screen_rect(), Rounding::ZERO, Color32::BLACK);
 
         match self {

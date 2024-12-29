@@ -1,17 +1,20 @@
 use std::path::PathBuf;
 
 use chrono::Utc;
-use egui::{pos2, vec2, Align2, Color32, FontId, ImageSource, Layout, Rect, Rounding, Style, TextEdit, TextStyle, Ui, UiBuilder, Visuals};
+use egui::{pos2, vec2, Align2, Color32, FontId, Layout, Rect, Rounding, TextEdit, TextStyle, Ui, Visuals};
 use rfd::FileDialog;
 
 use crate::{
-    BSKY_BLUE,
-    backend::record::{BlueskyApiRecord, BlueskyApiRecordPost},
+    backend::record::BlueskyApiRecord,
     bridge::Bridge,
-    defs::bsky::{actor::defs::ProfileViewDetailed, feed::ReplyRef},
+    defs::bsky::{
+        actor::defs::ProfileViewDetailed,
+        feed::{self, ReplyRef},
+    },
     frontend::{circle_button, main::ClientFrontendFlyoutVariant},
     image::ImageCache,
     widgets::spinner::SegoeBootSpinner,
+    BSKY_BLUE,
 };
 
 pub struct ComposerFlyout {
@@ -71,10 +74,7 @@ fn special_char_name(_: char) -> Option<&'static str> {
 }
 
 fn char_name(chr: char) -> String {
-    special_char_name(chr)
-        .map(|s| s.to_owned())
-        .or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase()))
-        .unwrap_or_else(|| "unknown".to_owned())
+    special_char_name(chr).map(|s| s.to_owned()).or_else(|| unicode_names2::name(chr).map(|name| name.to_string().to_lowercase())).unwrap_or_else(|| "unknown".to_owned())
 }
 
 impl ClientFrontendFlyoutVariant {
@@ -95,7 +95,7 @@ impl ClientFrontendFlyoutVariant {
                 egui::ScrollArea::horizontal().show(ui, |ui| {
                     ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
                         let mut rm: Option<usize> = None;
-                        for (idx, path) in data.images.iter().enumerate() {
+                        for (idx, _path) in data.images.iter().enumerate() {
                             let (_, rect) = ui.allocate_space(vec2(160.0, 90.0));
                             ui.painter().rect_filled(rect, Rounding::ZERO, BSKY_BLUE);
                             ui.painter().text(rect.center() - vec2(0.0, 4.0), Align2::CENTER_CENTER, idx, FontId::proportional(30.0), Color32::WHITE);
@@ -103,15 +103,19 @@ impl ClientFrontendFlyoutVariant {
                             let close_button = ui.allocate_rect(rect.shrink(4.0).with_min_x(rect.right() - 34.0).with_max_y(rect.top() + 34.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                             ui.painter().rect_filled(close_button.rect, Rounding::ZERO, Color32::from_black_alpha(128));
                             ui.painter().text(close_button.rect.center() - vec2(0.0, 1.0), Align2::CENTER_CENTER, "\u{E0C7}", FontId::new(16.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
-                            
-                            if close_button.clicked() { rm = Some(idx); }
+
+                            if close_button.clicked() {
+                                rm = Some(idx);
+                            }
 
                             let alt_button = ui.allocate_rect(rect.shrink(4.0).with_max_x(rect.left() + 44.0).with_min_y(rect.bottom() - 24.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                             ui.painter().rect_filled(alt_button.rect, Rounding::ZERO, Color32::from_black_alpha(128));
                             ui.painter().text(alt_button.rect.left_center() + vec2(8.0, -1.0), Align2::CENTER_CENTER, "+ ALT", FontId::proportional(14.0), Color32::WHITE);
                         }
 
-                        if let Some(rm) = rm { data.images.remove(rm); }
+                        if let Some(rm) = rm {
+                            data.images.remove(rm);
+                        }
                     });
                 });
             }
@@ -128,12 +132,7 @@ impl ClientFrontendFlyoutVariant {
                             .characters()
                             .iter()
                             .filter(|(chr, _fonts)| !chr.is_whitespace() && !chr.is_ascii_control() && !chr.is_alphanumeric() && (**chr as u16) > 0x25FF)
-                            .map(|(chr, _)| {
-                                (
-                                    *chr,
-                                    char_name(*chr),
-                                )
-                            })
+                            .map(|(chr, _)| (*chr, char_name(*chr)))
                             .collect::<Vec<_>>()
                     });
                     egui::ScrollArea::vertical().max_height(emojis_height).show(ui, |ui| {
@@ -150,12 +149,10 @@ impl ClientFrontendFlyoutVariant {
                                 if sense.on_hover_text(char_name(chr.0)).clicked() {
                                     data.draft.push(chr.0);
                                 }
-                            }    
+                            }
                         });
                         ui.allocate_space(vec2(ui.cursor().width(), 0.0));
                     });
-                    
-
                 });
             }
 
@@ -163,25 +160,29 @@ impl ClientFrontendFlyoutVariant {
                 buttons.add_enabled_ui(data.images.len() < 4, |buttons| 'picker_logic: {
                     if circle_button(buttons, "\u{E114}", 15.0, 15.0).on_hover_text("Upload Image").clicked() {
                         let files = FileDialog::new()
-                        .add_filter("image", &["png", "jpg", "jpeg", "webp"])
-                        .add_filter("other", &["*"])
-                        //.set_directory("/")
-                        .pick_files();
-                        if files.is_none() { break 'picker_logic; }
+                            .add_filter("image", &["png", "jpg", "jpeg", "webp"])
+                            .add_filter("other", &["*"])
+                            //.set_directory("/")
+                            .pick_files();
+                        if files.is_none() {
+                            break 'picker_logic;
+                        }
                         let files = files.unwrap();
 
                         let pre_count = data.images.len().clone(); // this needs to be cached, else it will live update
                         for (idx, file) in files.into_iter().enumerate() {
-                            if idx > (3 - pre_count) { break 'picker_logic; }
+                            if idx > (3 - pre_count) {
+                                break 'picker_logic;
+                            }
                             data.images.push(file);
                         }
                     }
                 });
-                
+
                 if circle_button(buttons, "\u{E234}", 20.0, 15.0).on_hover_text("Emoji Picker").clicked() {
                     data.emoji_picker = !data.emoji_picker;
                 }
-                
+
                 let send_button_rect = buttons.cursor().with_min_x(right_limit - 90.0).with_max_x(right_limit).with_max_y(buttons.cursor().top() + 30.0);
                 let send_button = buttons.add_enabled_ui(data.draft.len() > 0, |buttons| buttons.allocate_rect(send_button_rect, egui::Sense::click())).inner.on_hover_cursor(egui::CursorIcon::PointingHand);
                 buttons.painter().rect_filled(send_button_rect, Rounding::ZERO, BSKY_BLUE.gamma_multiply(if data.draft.len() > 0 && data.draft.len() <= 300 { 1.0 } else { 0.5 }));
@@ -192,7 +193,7 @@ impl ClientFrontendFlyoutVariant {
                     let mut languages: Vec<String> = Vec::new();
                     languages.push("en".to_owned());
 
-                    let record = BlueskyApiRecord::Post(BlueskyApiRecordPost { text: data.draft.clone(), created_at: Utc::now(), facets: None, reply: data.reply.clone(), embed: None, langs: Some(languages), labels: None, tags: None });
+                    let record = BlueskyApiRecord::Post(feed::Post { text: data.draft.clone(), created_at: Utc::now(), facets: None, reply: data.reply.clone(), embed: None, langs: Some(languages), labels: None, tags: None });
                     if data.images.len() > 0 {
                         backend.backend_commander.send(crate::bridge::FrontToBackMsg::CreateRecordWithMediaRequest(record, data.images.clone())).unwrap();
                     } else {

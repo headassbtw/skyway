@@ -11,7 +11,7 @@ pub struct PostView {
     pub uri: String,
     pub cid: String,
     pub author: crate::defs::bsky::actor::defs::ProfileViewBasic,
-    pub record: crate::defs::bsky::feed::Record,
+    pub record: crate::defs::bsky::feed::Post,
     pub indexed_at: DateTime<Utc>,
 
     #[serde(skip_serializing_if = "Option::is_none")]

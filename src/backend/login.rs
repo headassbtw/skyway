@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use chrono::{DateTime, NaiveDateTime, TimeDelta, Utc};
+use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 
@@ -130,7 +130,7 @@ impl ClientBackend {
                     if let Ok(payload) = String::from_utf8(dec) {
                         let jason: Result<JwtMidsection, serde_json::Error> = serde_json::from_str(&payload);
                         if let Ok(jwt) = jason {
-                            Some(DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(jwt.exp as i64, 0 as u32), Utc))
+                            DateTime::from_timestamp(jwt.exp as i64, 0 as u32)
                         } else {
                             println!("couldn't parse jwt json");
                             None

@@ -1,10 +1,10 @@
 use crate::{backend::{
-    feeds::ActorFeedsResponse, main::BlueskyLoginResponse, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
-}, defs::{self, bsky::{actor::defs::Preference, embed::{self, AspectRatio}, feed::defs::{FeedViewPost, GeneratorView}}, Blob}, settings::Settings};
+    main::BlueskyLoginResponse, record::{BlueskyApiCreateRecordResponse, BlueskyApiDeleteRecordResponse, BlueskyApiRecord}, thread::BlueskyApiGetThreadResponse, BlueskyApiError, ClientBackend
+}, defs::{self, bsky::{actor::defs::Preference, embed::{self, AspectRatio}, feed::defs::GeneratorView}, Blob}, settings::Settings};
 use crate::defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::{FeedCursorPair, PostView}};
 use anyhow::Result;
-use image::{GenericImageView, ImageReader};
-use std::{fs::File, io::{BufReader, Read}, path::PathBuf, sync::{
+use image::GenericImageView;
+use std::{fs::File, io::Read, path::PathBuf, sync::{
     mpsc::{Receiver, Sender},
     Arc, Mutex,
 }};

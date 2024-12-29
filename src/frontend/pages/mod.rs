@@ -1,4 +1,4 @@
-use egui::{pos2, vec2, Align2, Color32, FontId, Rect, Ui, UiBuilder};
+use egui::{pos2, vec2, Align2, FontId, Rect, Ui, UiBuilder};
 use media::FrontendMediaViewVariant;
 use profile::FrontendProfileView;
 use thread::FrontendThreadView;
@@ -103,32 +103,29 @@ impl FrontendMainViewStack {
         let inf: ViewStackReturnInfo = match guh {
             FrontendMainView::Login() => {
                 FrontendMainView::landing(&mut view, modal);
-                ViewStackReturnInfo {
-                    title: todo!(),
-                    render_back_button: false,
-                    handle_back_logic: false,
-                    force_back: false,
-                }
+                ViewStackReturnInfo { title: None, render_back_button: false, handle_back_logic: false, force_back: false }
             }
             FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, backend, image, flyout, &mut self.propose),
             FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
             FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),
         };
-        
+
         if let Some(title) = &inf.title {
-            ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);    
+            ui.painter().text(pos, Align2::LEFT_BOTTOM, title, FontId::new(40.0, egui::FontFamily::Name("Segoe Light".into())), BSKY_BLUE);
         }
 
         if self.stack.len() > 1 {
             let back_button_clicked = if inf.render_back_button {
                 let back_button_rect = Rect { min: pos2(pos.x - 60.0, pos.y - 44.0), max: pos2(pos.x - 20.0, pos.y - 4.0) };
                 let back_button = ui.allocate_rect(back_button_rect, egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-                ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);    
+                ui.painter().text(back_button_rect.center(), Align2::CENTER_CENTER, "\u{E0BA}", FontId::new(40.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
                 back_button.clicked()
-            } else { false };
-            
-            if back_button_clicked || close_requested  || inf.force_back {
+            } else {
+                false
+            };
+
+            if back_button_clicked || close_requested || inf.force_back {
                 self.pop();
             }
         }

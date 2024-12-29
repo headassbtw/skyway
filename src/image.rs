@@ -2,7 +2,7 @@ use directories::ProjectDirs;
 use egui::{ColorImage, TextureHandle, TextureId, TextureOptions, Vec2};
 use image::{DynamicImage, ImageReader};
 use std::{
-    borrow::Borrow, collections::HashMap, fs::{self, File}, hash::{DefaultHasher, Hash, Hasher}, io::Write, path::PathBuf, sync::{
+    collections::HashMap, fs::{self, File}, hash::{DefaultHasher, Hash, Hasher}, io::Write, path::PathBuf, sync::{
         mpsc::{Receiver, Sender},
         Arc, Mutex,
     }

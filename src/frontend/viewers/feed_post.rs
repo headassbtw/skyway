@@ -1,17 +1,13 @@
-use std::sync::{Arc, Mutex};
-
 use crate::{
-    backend::record::{BlueskyApiRecordLike}, bridge::Bridge, defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant}, frontend::{
+    bridge::Bridge, defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant}, frontend::{
         main::ClientFrontendFlyout,
         pages::{profile::FrontendProfileView, FrontendMainView, MainViewProposition},
-    }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}
+    }, image::ImageCache,
 };
 
 
 use egui::{
-    pos2,
-    text::{LayoutJob, TextWrapping},
-    vec2, Align2, Color32, FontId, Layout, Rect, Response, Rounding, ScrollArea, Stroke, TextFormat, Ui, UiBuilder, Widget,
+    vec2, Layout, Response, Ui, Widget,
 };
 
 use super::post::post_viewer;

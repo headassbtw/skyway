@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
 use serde_json;
+use std::sync::Arc;
 
 pub mod defs;
 
@@ -20,7 +21,14 @@ pub struct ReplyRef {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct Record {
+pub struct Like {
+    pub subject: StrongRef,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Post {
 	pub text: String,
     pub created_at: DateTime<Utc>,
 
@@ -29,11 +37,11 @@ pub struct Record {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reply: Option<ReplyRef>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub embed: Option<serde_json::Value>,
+    pub embed: Option<Arc<crate::defs::bsky::embed::Variant>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub langs: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<serde_json::Value>>,
+    pub tags: Option<Vec<String>>,
 }
