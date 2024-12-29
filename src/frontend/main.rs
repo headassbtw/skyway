@@ -23,6 +23,7 @@ pub enum ClientFrontendPage {
 pub enum ClientFrontendModalVariant {
     LoginModal(crate::frontend::modals::login::LoginModal),
     ImportantErrorModal(crate::frontend::modals::important_error::ImportantErrorModal),
+    DeceptiveLink(crate::frontend::modals::deceptive_link::DeceptiveLinkModal),
 }
 
 pub enum ClientFrontendFlyoutVariant {
@@ -502,6 +503,11 @@ impl eframe::App for ClientFrontend {
                     ClientFrontendModalVariant::ImportantErrorModal(_) => {
                         ui.allocate_new_ui(content, |modal_contents| {
                             self.important_error_modal(modal_contents);
+                        });
+                    }
+                    ClientFrontendModalVariant::DeceptiveLink(_) => {
+                        ui.allocate_new_ui(content, |modal_contents| {
+                            self.deceptive_link_modal(modal_contents);
                         });
                     }
                 };

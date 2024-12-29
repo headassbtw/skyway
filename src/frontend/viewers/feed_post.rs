@@ -1,6 +1,6 @@
 use crate::{
     bridge::Bridge, defs::bsky::feed::defs::{FeedViewPost, Reason, RelatedPostVariant}, frontend::{
-        main::ClientFrontendFlyout,
+        main::{ClientFrontendFlyout, ClientFrontendModal},
         pages::{profile::FrontendProfileView, FrontendMainView, MainViewProposition},
     }, image::ImageCache,
 };
@@ -12,7 +12,7 @@ use egui::{
 
 use super::post::post_viewer;
 
-pub fn feed_post_viewer(ui: &mut Ui, post: &FeedViewPost, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn feed_post_viewer(ui: &mut Ui, post: &FeedViewPost, modal: &mut ClientFrontendModal, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     if post.reason.is_some() || post.reply.is_some() {
         puffin::profile_scope!("Reason");
         ui.style_mut().spacing.item_spacing = vec2(10.0, 2.0);
@@ -50,5 +50,5 @@ pub fn feed_post_viewer(ui: &mut Ui, post: &FeedViewPost, backend: &Bridge, img_
         });
         ui.style_mut().spacing.item_spacing.y = 10.0;
     }
-    post_viewer(ui, post.post.clone(), false, backend, img_cache, flyout, new_view)
+    post_viewer(ui, post.post.clone(), false, modal, backend, img_cache, flyout, new_view)
 }

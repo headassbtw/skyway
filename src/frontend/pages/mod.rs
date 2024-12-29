@@ -105,10 +105,10 @@ impl FrontendMainViewStack {
                 FrontendMainView::landing(&mut view, modal);
                 ViewStackReturnInfo { title: None, render_back_button: false, handle_back_logic: false, force_back: false }
             }
-            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Thread(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Profile(ref mut data) => data.render(&mut view, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Media(ref mut data) => data.render(&mut view, image, &mut self.propose),
+            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Thread(ref mut data) =>   data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Profile(ref mut data) =>  data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Media(ref mut data) =>    data.render(&mut view,                      image,         &mut self.propose),
         };
 
         if let Some(title) = &inf.title {

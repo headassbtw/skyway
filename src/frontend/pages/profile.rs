@@ -6,7 +6,7 @@ use puffin::profile_scope;
 use crate::{
     bridge::{Bridge, FrontToBackMsg},
     defs::bsky::{actor::defs::ProfileViewDetailed, feed::defs::FeedCursorPair},
-    frontend::{main::ClientFrontendFlyout, viewers::feed_post::feed_post_viewer},
+    frontend::{main::{ClientFrontendFlyout, ClientFrontendModal}, viewers::feed_post::feed_post_viewer},
     image::{ImageCache, LoadableImage},
     widgets::spinner::SegoeBootSpinner,
     BSKY_BLUE,
@@ -32,7 +32,7 @@ impl FrontendProfileView {
     pub fn new(did: String) -> Self {
         Self { profile_data: None, id_cmp: did.clone(), loading: false, posts: None, ctx: None, id: Id::new(format!("{}_profile_scrollview", did)) }
     }
-    pub fn render(&mut self, ui: &mut Ui, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
+    pub fn render(&mut self, ui: &mut Ui, modal: &mut ClientFrontendModal, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         puffin::profile_function!();
         ui.style_mut().spacing.scroll.floating = false;
         ui.style_mut().spacing.scroll.bar_width = 18.0;
@@ -231,7 +231,7 @@ impl FrontendProfileView {
                             if let Some(posts) = &self.posts {
                                 let posts = posts.lock().unwrap();
                                 for post in posts.feed.iter() {
-                                    feed_post_viewer(ui, post, &backend, image, flyout, new_view);
+                                    feed_post_viewer(ui, post, modal, &backend, image, flyout, new_view);
                                 }
                             }
 

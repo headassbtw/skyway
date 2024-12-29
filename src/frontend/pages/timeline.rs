@@ -8,7 +8,7 @@ use crate::{
     },
     frontend::{
         flyouts::composer::ComposerFlyout,
-        main::ClientFrontendFlyout,
+        main::{ClientFrontendFlyout, ClientFrontendModal},
         pages::{profile::FrontendProfileView, FrontendMainView},
         viewers,
     },
@@ -39,7 +39,7 @@ impl FrontendTimelineView {
         Self { timeline: FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() }, feed: 0, feeds: feeds_dest, post_highlight: (0, 999.999, false) }
     }
 
-    pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
+    pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, modal: &mut ClientFrontendModal, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
         puffin::profile_function!();
         let top = ui.cursor().top(); // the top of the scroll rect, used to compare post positions for keyboard nav
         let offset = ui.ctx().animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
@@ -129,7 +129,7 @@ impl FrontendTimelineView {
             for (i, post) in iter {
                 puffin::profile_scope!("Post");
 
-                let res = viewers::feed_post::feed_post_viewer(tl, &post, backend, image, flyout, new_view);
+                let res = viewers::feed_post::feed_post_viewer(tl, &post, modal, backend, image, flyout, new_view);
                 // keyboard nav comparison, checks if we're scrolling (no need to update if not), and if we are, sets the closest post to the top as the active one
                 {
                     puffin::profile_scope!("Keyboard nav part B");

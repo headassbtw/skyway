@@ -1,15 +1,12 @@
 use std::{sync::{Arc, Mutex}};
 
 use crate::{
-    defs::bsky::feed,
-    bridge::Bridge, defs::bsky::{embed, feed::{defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
-        flyouts::composer::ComposerFlyout,
-        main::ClientFrontendFlyout,
-        pages::{
+    bridge::Bridge, defs::bsky::{embed, feed::{self, defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
+        flyouts::composer::ComposerFlyout, main::{ClientFrontendFlyout, ClientFrontendModal}, modals::deceptive_link::DeceptiveLinkModal, pages::{
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record, video::view_video}, offset_time},
+        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record, video::view_video}, offset_time}
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}, BSKY_BLUE
 };
 
@@ -17,6 +14,7 @@ use chrono::Utc;
 use egui::{
     pos2, vec2, Align2, Button, Color32, FontId, Id, Layout, Rect, Response, Rounding, Stroke, Ui, UiBuilder
 };
+use puffin::profile_scope;
 
 fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyph: &str, count: usize, color: Option<Color32>) -> Response {
     let (id, rtn) = ui.allocate_space(vec2(size * 2.5 + ui.spacing().item_spacing.x, size));
@@ -87,7 +85,7 @@ pub fn not_found_post(ui: &mut Ui) -> Response {
     res        
 }
 
-pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
+pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &mut ClientFrontendModal, backend: &Bridge, img_cache: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> Response {
     puffin::profile_function!();
     let post_og = post.clone();
     let mut like: Option<bool> = None;
@@ -183,11 +181,20 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                                 }
                             }
 
-                            if ui.link(egui::RichText::new(&post.record.text[facet.index.byte_start..facet.index.byte_end]).color(BSKY_BLUE).font(font_id.clone())).clicked() {
+                            let link_text = &post.record.text[facet.index.byte_start..facet.index.byte_end];
+                            if ui.link(egui::RichText::new(link_text).color(BSKY_BLUE).font(font_id.clone())).clicked() {
                                 for feature in &facet.features {
                                     match feature {
-                                        crate::defs::bsky::richtext::Feature::Mention(mention) => { new_view.set(FrontendMainView::Profile(FrontendProfileView::new(mention.did.clone()))); },
-                                        crate::defs::bsky::richtext::Feature::Link(link) => { open_in_browser(&link.uri); },
+                                        crate::defs::bsky::richtext::Feature::Mention(mention) => {
+                                            new_view.set(FrontendMainView::Profile(FrontendProfileView::new(mention.did.clone())));
+                                        },
+                                        crate::defs::bsky::richtext::Feature::Link(link) => {
+                                            if link_text != &link.uri {
+                                                modal.set(crate::frontend::main::ClientFrontendModalVariant::DeceptiveLink(DeceptiveLinkModal::new(link_text.to_string(), link.uri.clone())));
+                                            } else {
+                                                open_in_browser(&link.uri);
+                                            }
+                                        },
                                         crate::defs::bsky::richtext::Feature::Tag(_) => {},
                                     }
                                 }
@@ -257,6 +264,48 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
             }
             post_contents.style_mut().spacing.item_spacing.y = 10.0;
             post_contents.allocate_space(vec2(0.0, 0.0));
+
+            let reply_count = post.reply_count.unwrap_or(0);
+            let repost_count = post.repost_count.unwrap_or(0);
+            let quote_count = post.quote_count.unwrap_or(0);
+            let like_count = post.like_count.unwrap_or(0);
+
+            if main {
+                profile_scope!("Main skeet interactions count");
+                post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
+                    let segoe = FontId::proportional(12.0);
+                    let seglt = FontId::new(12.0, egui::FontFamily::Name("Segoe Light".into()));
+
+                    if reply_count > 0 {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(egui::RichText::new(reply_count.to_string()).font(segoe.clone()));
+                        ui.spacing_mut().item_spacing.x = 16.0;
+                        ui.label(egui::RichText::new(if reply_count > 1 { " Replies" } else { " Reply" }).font(seglt.clone()));
+                    }
+
+                    if repost_count > 0 {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(egui::RichText::new(repost_count.to_string()).font(segoe.clone()));
+                        ui.spacing_mut().item_spacing.x = 16.0;
+                        ui.label(egui::RichText::new(if repost_count > 1 { " Reposts" } else { " Repost" }).font(seglt.clone()));
+                    }
+                    
+                    if quote_count > 0 {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(egui::RichText::new(quote_count.to_string()).font(segoe.clone()));
+                        ui.spacing_mut().item_spacing.x = 16.0;
+                        ui.label(egui::RichText::new(if quote_count > 1 { " Quotes" } else { " Quote" }).font(seglt.clone()));
+                    }
+
+                    if like_count > 0 {
+                        ui.spacing_mut().item_spacing.x = 0.0;
+                        ui.label(egui::RichText::new(like_count.to_string()).font(segoe.clone()));
+                        ui.spacing_mut().item_spacing.x = 16.0;
+                        ui.label(egui::RichText::new(if like_count > 1 { " Likes" } else { " Like" }).font(seglt.clone()));
+                    }
+                });
+                post_contents.allocate_space(vec2(0.0, 0.0));
+            }
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 if post.viewer.is_none() {
                     puffin::profile_scope!("Action Buttons early exit 0");
@@ -270,13 +319,18 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
 
                 puffin::profile_scope!("Action Buttons");
 
-                action_buttons.style_mut().spacing.item_spacing.x = 30.0;
+                if !main {
+                    action_buttons.style_mut().spacing.item_spacing.x = 30.0;
+                } else {
+                    action_buttons.style_mut().spacing.item_spacing.x = 4.0;
+                }
+                
 
                 {
                     puffin::profile_scope!("Reply Button");
 
                     let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
-                    let reply_count = post.reply_count.unwrap_or(0);
+                    let reply_count = if main { 0 } else { reply_count };
                     let reply_button = action_button(action_buttons, reply_enabled, false, 30.0, "\u{E206}", reply_count as usize, None);
                     if reply_button.clicked() {
                         let reply = ReplyRef {
@@ -289,7 +343,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 {
                     puffin::profile_scope!("Repost Button");
 
-                    let repost_count = post.repost_count.unwrap_or(0) + post.quote_count.unwrap_or(0);
+                    let repost_count = if main { 0 } else { repost_count + quote_count };
                     let self_reposted = post.viewer.as_ref().unwrap().repost.is_some();
                     let repost_button = action_button(action_buttons, true, self_reposted, 30.0, "\u{E207}", repost_count as usize, Some(Color32::from_rgb(92, 239, 170)));
 
@@ -305,7 +359,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, backend:
                 {
                     puffin::profile_scope!("Like Button");
 
-                    let like_count = post.like_count.unwrap_or(0);
+                    let like_count = if main { 0 } else { like_count };
                     let self_liked = post.viewer.as_ref().unwrap().like.is_some();
                     if action_button(action_buttons, true, self_liked, 30.0, "\u{E209}", like_count as usize, Some(Color32::from_rgb(236, 72, 153))).clicked() {
                         like = Some(!self_liked);

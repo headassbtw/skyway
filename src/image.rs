@@ -2,10 +2,15 @@ use directories::ProjectDirs;
 use egui::{ColorImage, TextureHandle, TextureId, TextureOptions, Vec2};
 use image::{DynamicImage, ImageReader};
 use std::{
-    collections::HashMap, fs::{self, File}, hash::{DefaultHasher, Hash, Hasher}, io::Write, path::PathBuf, sync::{
+    collections::HashMap,
+    fs::{self, File},
+    hash::{DefaultHasher, Hash, Hasher},
+    io::Write,
+    path::PathBuf,
+    sync::{
         mpsc::{Receiver, Sender},
         Arc, Mutex,
-    }
+    },
 };
 
 use crate::settings::Settings;
@@ -69,23 +74,27 @@ impl ImageCache {
             while let Ok(req) = rx1.try_recv() {
                 let req = match req {
                     LoaderRequest::Shutdown => break 'outer Ok(()),
-                    LoaderRequest::GetImg(path) => { path },
+                    LoaderRequest::GetImg(path) => path,
                 };
                 let req_og = req.clone();
                 let req = match settings.lock().unwrap().preferred_image_format {
-                    crate::settings::PreferredImageFormat::Original => { req },
+                    crate::settings::PreferredImageFormat::Original => req,
                     crate::settings::PreferredImageFormat::Png => {
-                        if req.contains("@jpeg")  {
+                        if req.contains("@jpeg") {
                             req.replace("@jpeg", "@png")
                         } else if req.contains("@jpg") {
                             req.replace("@jpg", "@png")
-                        } else { req }
-                    },
+                        } else {
+                            req
+                        }
+                    }
                     crate::settings::PreferredImageFormat::Jpeg => {
-                        if req.contains("@png")  {
+                        if req.contains("@png") {
                             req.replace("@png", "@jpg")
-                        } else { req }
-                    },
+                        } else {
+                            req
+                        }
+                    }
                 };
 
                 if req.is_empty() {
