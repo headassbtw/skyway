@@ -175,7 +175,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                                 }
                             }
 
-                            let link_text = &post.record.text[facet.index.byte_start..facet.index.byte_end];
+                            let link_text = &post.record.text[facet.index.byte_start..usize::min(facet.index.byte_end, post.record.text.len())];
                             if ui.link(egui::RichText::new(link_text).color(BSKY_BLUE).font(font_id.clone())).clicked() {
                                 for feature in &facet.features {
                                     match feature {
