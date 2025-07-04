@@ -393,7 +393,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
         } else {
             if let Some(viewer) = &post.viewer {
                 if let Some(viewer_repost) = &viewer.repost {
-                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_repost.split("/").last().unwrap().to_owned(), "app.bsky.feed.repost".to_owned(), post_og.clone())).unwrap();
+                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest{
+                        rkey: viewer_repost.split("/").last().unwrap().to_owned(),
+                        nsid: "app.bsky.feed.repost".to_owned(),
+                        post_mod: post_og.clone(),
+                    }).unwrap();
                 }
             }
         }
@@ -406,7 +410,11 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
         } else {
             if let Some(viewer) = &post.viewer {
                 if let Some(viewer_like) = &viewer.like {
-                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest(viewer_like.split("/").last().unwrap().to_owned(), "app.bsky.feed.like".to_owned(), post_og.clone())).unwrap();
+                    backend.backend_commander.send(crate::bridge::FrontToBackMsg::DeleteRecordUnderPostRequest{
+                        rkey: viewer_like.split("/").last().unwrap().to_owned(),
+                        nsid: "app.bsky.feed.like".to_owned(),
+                        post_mod: post_og.clone(),
+                    }).unwrap();
                 }
             }
         }

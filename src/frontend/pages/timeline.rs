@@ -163,9 +163,16 @@ impl FrontendTimelineView {
                 };
                 if spinner.is_rect_visible(spinner_rect) && tl.cursor.is_some() {
                     if self.feed == 0 {
-                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest(tl.cursor.clone(), None)).unwrap();
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetTimelineRequest{
+                            cursor: tl.cursor.clone(),
+                            limit: None,
+                        }).unwrap();
                     } else {
-                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetFeedRequest(jank, tl.cursor.clone(), None)).unwrap();
+                        backend.backend_commander.send(crate::bridge::FrontToBackMsg::GetFeedRequest{
+                            feed: jank,
+                            cursor: tl.cursor.clone(),
+                            limit: None,
+                        }).unwrap();
                     }
 
                     tl.cursor = None;

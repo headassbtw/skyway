@@ -55,7 +55,10 @@ impl ClientFrontend {
                     close = true;
                 }
                 if ui.add_sized(vec2(90.0, 32.0), egui::Button::new("Log In")).clicked() {
-                    self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::LoginRequestStandard(data.username.clone(), data.password.clone())).unwrap();
+                    self.backend.backend_commander.send(crate::bridge::FrontToBackMsg::LoginRequestStandard{
+                        handle: data.username.clone(),
+                        password: data.password.clone()
+                    }).unwrap();
                 }
             });
             if data.error_msg.len() > 0 {

@@ -68,7 +68,6 @@ impl FrontendThreadView {
                 let rtn = viewers::post::post_viewer(ui, thread.post.clone(), first, modal, backend, image, flyout, new_view);
 
                 if first {
-
                     if let Some(replies) = &thread.replies {
                         // this is kind of jank but it works for now :)
                         let reply_depth = match replies.len() {
@@ -101,7 +100,7 @@ impl FrontendThreadView {
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
             if !self.loading {
-                backend.backend_commander.send(FrontToBackMsg::GetThreadRequest(self.id_cmp.clone())).unwrap();
+                backend.backend_commander.send(FrontToBackMsg::GetThreadRequest { uri: self.id_cmp.clone() }).unwrap();
                 self.loading = true;
             }
         }

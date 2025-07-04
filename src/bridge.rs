@@ -13,29 +13,22 @@ use crate::frontend::CursorListPair;
 
 pub enum FrontToBackMsg {
     ShutdownMessage,
-    LoginRequestStandard(String, String),
+    LoginRequestStandard { handle: String, password: String },
     LoginRequest2FA(String, String, String),
 
-    GetTimelineRequest(Option<String>, Option<u32>),
-    GetFeedRequest(String, Option<String>, Option<u32>),
-    GetProfileRequest(String),
-    GetThreadRequest(String),
-    GetAuthorFeedRequest{
-        did: String,
-        cursor: String,
-        posts: Arc<Mutex<FeedCursorPair>>
-    },
-    GetFollowersRequest {
-        did: String,
-        profiles: Arc<Mutex<CursorListPair<ProfileView>>>,
-    },
+    GetTimelineRequest { cursor: Option<String>, limit: Option<u32> },
+    GetFeedRequest { feed: String, cursor: Option<String>, limit: Option<u32> },
+    GetProfileRequest { did: String },
+    GetThreadRequest { uri: String },
+    GetAuthorFeedRequest { did: String, cursor: String, posts: Arc<Mutex<FeedCursorPair>> },
+    GetFollowersRequest { did: String, profiles: Arc<Mutex<CursorListPair<ProfileView>>> },
 
     CreateRecordRequest(BlueskyApiRecord),
     CreateRecordWithMediaRequest(BlueskyApiRecord, Vec<PathBuf>),
     CreateRecordUnderPostRequest(BlueskyApiRecord, Arc<Mutex<PostView>>),
 
-    DeleteRecordRequest(String, String),
-    DeleteRecordUnderPostRequest(String, String, Arc<Mutex<PostView>>),
+    DeleteRecordRequest { rkey: String, nsid: String },
+    DeleteRecordUnderPostRequest { rkey: String, nsid: String, post_mod: Arc<Mutex<PostView>> },
 }
 
 pub enum BackToFrontMsg {
@@ -153,7 +146,7 @@ impl Bridge {
 
             match request? {
                 FrontToBackMsg::ShutdownMessage => {drop(working); break 'outer},
-                FrontToBackMsg::LoginRequestStandard(handle, password) => {
+                FrontToBackMsg::LoginRequestStandard { handle, password } => {
                     let login_response = api.login(handle, password).await;
                     let login_response = if let BlueskyLoginResponse::Success(inf) = login_response {
                         inf
@@ -170,23 +163,23 @@ impl Bridge {
                         Ok(p) => Some(p),
                         Err(_) => None,
                     };
-                    
+
                     tx.send(BackToFrontMsg::LoginResponse(BlueskyLoginResponse::Success(login_response), profile, Vec::new()))?;
                 }
                 FrontToBackMsg::LoginRequest2FA(_, _, _) => todo!(),
-                FrontToBackMsg::GetTimelineRequest(cursor, limit) => {
+                FrontToBackMsg::GetTimelineRequest { cursor, limit } => {
                     tx.send(BackToFrontMsg::TimelineResponse(api.get_timeline(cursor, limit).await))?;
                 }
-                FrontToBackMsg::GetFeedRequest(feed, cursor, _limit) => {
+                FrontToBackMsg::GetFeedRequest { feed, cursor, .. } => {
                     tx.send(BackToFrontMsg::TimelineResponse(api.get_feed(feed, cursor).await))?;
                 }
-                FrontToBackMsg::GetProfileRequest(did) => {
+                FrontToBackMsg::GetProfileRequest { did } => {
                     tx.send(BackToFrontMsg::ProfileResponse(did.clone(), api.get_profile(did).await))?;
                 }
-                FrontToBackMsg::GetThreadRequest(uri) => {
+                FrontToBackMsg::GetThreadRequest { uri } => {
                     tx.send(BackToFrontMsg::ThreadResponse(uri.clone(), api.get_thread(uri, None, None).await))?;
-                },
-                FrontToBackMsg::GetAuthorFeedRequest{ did, cursor, posts } => {
+                }
+                FrontToBackMsg::GetAuthorFeedRequest { did, cursor, posts } => {
                     let res = api.get_author_feed(did, cursor).await;
                     if let Err(err) = &res {
                         println!("Failure {:?}", err);
@@ -199,7 +192,7 @@ impl Bridge {
                         poasts.cursor = res.cursor;
                         poasts.feed.append(&mut res.feed);
                     }
-                },
+                }
                 FrontToBackMsg::GetFollowersRequest { did, profiles } => {
                     let cursor = {
                         let mut profiles = profiles.lock().unwrap();
@@ -249,7 +242,7 @@ impl Bridge {
                             Err(err) => {
                                 tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?;
                                 break 'give_up;
-                            },
+                            }
                         }
                     }
                     let mut record = record;
@@ -300,10 +293,10 @@ impl Bridge {
                         Err(err) => tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?,
                     },
                 },
-                FrontToBackMsg::DeleteRecordRequest(_rkey, _nsid) => {
+                FrontToBackMsg::DeleteRecordRequest { .. } => {
                     tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::NotImplemented)))?;
                 }
-                FrontToBackMsg::DeleteRecordUnderPostRequest(rkey, nsid, post_mod) => {
+                FrontToBackMsg::DeleteRecordUnderPostRequest{ rkey, nsid, post_mod } => {
                     println!("deleting {}", rkey);
                     match api.delete_record(rkey, nsid.clone()).await {
                         Ok(_) => match nsid.as_str() {

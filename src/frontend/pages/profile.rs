@@ -248,9 +248,13 @@ impl FrontendProfileView {
                             let loader_response = ui.add(SegoeBootSpinner::new().size(50.0).color(BSKY_BLUE));
 
                             if self.posts.is_none() && ui.is_rect_visible(loader_response.rect) {
-                                let post_vec = Arc::new(Mutex::new(FeedCursorPair { cursor: None, feed: Vec::new() }));
-                                self.posts = Some(post_vec.clone());
-                                backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest{ did: profile.did.clone(), cursor: String::new(), posts: post_vec }).unwrap();
+                                let posts = Arc::new(Mutex::new(FeedCursorPair { cursor: None, feed: Vec::new() }));
+                                self.posts = Some(posts.clone());
+                                backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest{
+                                    did: profile.did.clone(),
+                                    cursor: String::new(),
+                                    posts
+                                }).unwrap();
                             }
                         });
                     });
@@ -263,7 +267,9 @@ impl FrontendProfileView {
         } else {
             SegoeBootSpinner::new().size(200.0).color(BSKY_BLUE).paint_at(ui, ui.ctx().screen_rect());
             if !self.loading {
-                backend.backend_commander.send(FrontToBackMsg::GetProfileRequest(self.id_cmp.clone())).unwrap();
+                backend.backend_commander.send(FrontToBackMsg::GetProfileRequest{
+                    did: self.id_cmp.clone(),
+                }).unwrap();
                 self.loading = true;
             }
         }
