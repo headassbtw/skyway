@@ -33,6 +33,14 @@ pub struct PostView {
     pub threadgate: Option<serde_json::Value>,
 }
 
+impl PostView {
+    pub fn url(&self) -> String {
+        let id = self.uri.split("/").last().unwrap();
+        let handle = if self.author.handle.eq("handle.invalid") { &self.author.did } else { &self.author.handle };
+        format!("https://bsky.app/profile/{}/post/{}", handle, id)
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ViewerState {
