@@ -1,12 +1,27 @@
 use std::{sync::{Arc, Mutex}};
 
 use crate::{
-    bridge::Bridge, defs::bsky::{embed, feed::{self, defs::{BlockedPost, PostView}, ReplyRef, StrongRef}}, frontend::{
-        flyouts::composer::ComposerFlyout, main::{ClientFrontendFlyout, ClientFrontendModal}, modals::deceptive_link::DeceptiveLinkModal, pages::{
+    bridge::Bridge,
+    defs::bsky::{embed, feed::{self, defs::{BlockedPost, PostView}, ReplyRef, StrongRef}},
+    frontend::{
+        flyouts::composer::ComposerFlyout,
+        main::{ClientFrontendFlyout, ClientFrontendModal},
+        modals::deceptive_link::DeceptiveLinkModal,
+        pages::{
             profile::FrontendProfileView,
             thread::FrontendThreadView,
             FrontendMainView, MainViewProposition,
-        }, viewers::{embeds::{external::view_external, images::view_images, record::view_record, video::view_video}, offset_time}
+        },
+        viewers::{
+            embeds::{
+                external::view_external,
+                images::view_images,
+                record::view_record,
+                video::view_video,
+            },
+            profile_picture::profile_picture_viewer,
+            offset_time
+        }
     }, image::{ImageCache, LoadableImage}, open_in_browser, widgets::{click_context_menu, spinner::SegoeBootSpinner}, BSKY_BLUE
 };
 
@@ -20,7 +35,7 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     let (id, rtn) = ui.allocate_space(vec2(size * 2.5 + ui.spacing().item_spacing.x, size));
 
     let color = {
-        puffin::profile_scope!("Color logic");
+        profile_scope!("Color logic");
         let highlight = if ui.style().visuals.dark_mode { Color32::WHITE } else { Color32::BLACK };
         let color = if pre_actioned { color.unwrap_or(highlight) } else { highlight };
         if !enabled { ui.visuals().weak_text_color() } else { color }
@@ -28,7 +43,7 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
 
     // TEXT
     let (galley, text_width) = if count > 0 {
-        puffin::profile_scope!("Text");
+        profile_scope!("Text");
         let galley = ui.painter().layout(count.to_string(), FontId::proportional(size / 2.0), color, size * 2.0);
         let width = galley.rect.width() + ui.spacing().item_spacing.x / 3.0;
         (Some(galley),
@@ -41,7 +56,7 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
     }).inner;
 
     {
-        puffin::profile_scope!("Animation");
+        profile_scope!("Animation");
 
         let anim = ui.ctx().animate_bool(Id::new(id), clicker.hovered());
         let opacity = (anim * 16.0) as u8;
@@ -50,7 +65,7 @@ fn action_button(ui: &mut Ui, enabled: bool, pre_actioned: bool, size: f32, glyp
 
     // ICON
     let circle_center = {
-        puffin::profile_scope!("Icon");
+        profile_scope!("Icon");
         let circle_center = rtn.min + vec2(size / 2.0, size / 2.0);
         ui.painter().circle(circle_center.clone(), size / 2.0 - 1.0, Color32::TRANSPARENT, Stroke::new(2.0, color));
         ui.painter().text(circle_center.clone() - vec2(0.0, 2.0), Align2::CENTER_CENTER, glyph, FontId::proportional(if glyph.eq("\u{E0C2}") { size / 2.2 } else { size * 2.0 / 3.0 }), color);
@@ -93,41 +108,20 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
     let mut view_thread = false;
     let mut view_profile = false;
     let post = {
-        puffin::profile_scope!("Mutex Lock");
+        profile_scope!("Mutex Lock");
         &post_og.lock().unwrap()
     };
     ui.style_mut().spacing.item_spacing.y = 40.0;
 
     let ffs = ui.with_layout(Layout::left_to_right(egui::Align::Min), |ui| {
-        puffin::profile_scope!("Main Container");
+        profile_scope!("Main Container");
         ui.style_mut().spacing.item_spacing = vec2(10.0, 10.0);
-        let pfp_response = ui.allocate_response(vec2(60.0, 60.0), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        let pfp_rect = pfp_response.rect;
-        if ui.is_rect_visible(pfp_rect) {
-            if let Some(avatar) = &post.author.avatar {
-                match img_cache.get_image(avatar) {
-                    LoadableImage::Unloaded => {
-                        ui.painter().rect_filled(pfp_rect, Rounding::ZERO, Color32::RED);
-                        SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
-                    }
-                    LoadableImage::Loading => {
-                        ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
-                        SegoeBootSpinner::new().size(40.0).color(Color32::WHITE).paint_at(ui, pfp_rect);
-                    }
-                    LoadableImage::Loaded(texture_id, _) => {
-                        ui.painter().image(texture_id, pfp_rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                    }
-                }
-            } else {
-                ui.painter().rect_filled(pfp_rect, Rounding::ZERO, BSKY_BLUE);
-                ui.painter().text(pfp_rect.center(), Align2::CENTER_CENTER, "", FontId::new(50.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
-            }
-        }
+        let pfp_response = profile_picture_viewer(ui, &post.author.avatar, [60.0, 60.0], img_cache);
         ui.with_layout(Layout::top_down(egui::Align::Min), |post_contents| {
             let the_width_you_care_about = post_contents.cursor().width();
             post_contents.set_max_width(the_width_you_care_about);
             post_contents.allocate_new_ui(UiBuilder::new().layout(Layout::left_to_right(egui::Align::TOP)), |name| 'render_name: {
-                puffin::profile_scope!("Name");
+                profile_scope!("Name");
                 // the culling here is really late and that annoys me but it's better than nothing
                 let seglight = egui::FontFamily::Name("Segoe Light".into());
                 let time_galley = name.painter().layout_no_wrap(offset_time(post.indexed_at), FontId::new(16.0, seglight.clone()), Color32::DARK_GRAY);
@@ -163,12 +157,12 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 
             });
             if post.record.text.len() > (0 as usize) {
-                puffin::profile_scope!("Text");
+                profile_scope!("Text");
                 let font_id = FontId::proportional(if main { 20.0 } else { 14.0 });
 
                 // This kinda sucks but it works!
                 if let Some(facets) = &post.record.facets && facets.len() > 0 {
-                    puffin::profile_scope!("facets/richtext");
+                    profile_scope!("facets/richtext");
                     post_contents.horizontal_wrapped(|ui| {
                         ui.spacing_mut().item_spacing.x = 0.0;
                         ui.style_mut().visuals.override_text_color = Some(ui.visuals().noninteractive().fg_stroke.color);
@@ -229,7 +223,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
             } else { &post.embed };
 
             if let Some(embed) = embed_enabled {
-                puffin::profile_scope!("Embed");
+                profile_scope!("Embed");
                 match embed {
                     embed::Variant::Images { images } => {
                         view_images(post_contents, Id::new(&post.cid), images, media_size, img_cache, new_view);
@@ -308,16 +302,16 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
             }
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 if post.viewer.is_none() {
-                    puffin::profile_scope!("Action Buttons early exit 0");
+                    profile_scope!("Action Buttons early exit 0");
                     break 'render_action_buttons; // if there's no viewer, you can't interact with it (for the most part) so don't bother
                 }
                 if !action_buttons.is_rect_visible(action_buttons.cursor().with_max_y(action_buttons.cursor().top() + 30.0)) {
-                    puffin::profile_scope!("Action Buttons early exit 1");
+                    profile_scope!("Action Buttons early exit 1");
                     action_buttons.allocate_space(vec2(0.0, 30.0));
                     break 'render_action_buttons;
                 }
 
-                puffin::profile_scope!("Action Buttons");
+                profile_scope!("Action Buttons");
 
                 if !main {
                     action_buttons.style_mut().spacing.item_spacing.x = 30.0;
@@ -327,7 +321,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 
 
                 {
-                    puffin::profile_scope!("Reply Button");
+                    profile_scope!("Reply Button");
 
                     let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
                     let reply_count = if main { 0 } else { reply_count };
@@ -341,7 +335,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                     }
                 }
                 {
-                    puffin::profile_scope!("Repost Button");
+                    profile_scope!("Repost Button");
 
                     let repost_count = if main { 0 } else { repost_count + quote_count };
                     let self_reposted = post.viewer.as_ref().unwrap().repost.is_some();
@@ -357,7 +351,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 }
                 
                 {
-                    puffin::profile_scope!("Like Button");
+                    profile_scope!("Like Button");
 
                     let like_count = if main { 0 } else { like_count };
                     let self_liked = post.viewer.as_ref().unwrap().like.is_some();
@@ -367,7 +361,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 }
 
                 {
-                    puffin::profile_scope!("More Button");
+                    profile_scope!("More Button");
 
                     click_context_menu::click_context_menu(action_button(action_buttons, true, false, 30.0, "\u{E0C2}", 0, None), |guh| {
                         guh.spacing_mut().item_spacing.y = 0.0;

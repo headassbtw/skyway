@@ -1,6 +1,7 @@
 use egui::{pos2, vec2, Align2, FontId, Rect, Ui, UiBuilder};
 use media::FrontendMediaViewVariant;
 use profile::FrontendProfileView;
+use profile_list::FrontendProfileListVariant;
 use thread::FrontendThreadView;
 use timeline::FrontendTimelineView;
 
@@ -13,6 +14,7 @@ pub mod media;
 pub mod profile;
 pub mod thread;
 pub mod timeline;
+pub mod profile_list;
 
 pub enum FrontendMainView {
     Login(),
@@ -20,6 +22,7 @@ pub enum FrontendMainView {
     Thread(FrontendThreadView),
     Profile(FrontendProfileView),
     Media(FrontendMediaViewVariant),
+    ProfileList(FrontendProfileListVariant),
 }
 
 pub struct ViewStackReturnInfo {
@@ -105,10 +108,11 @@ impl FrontendMainViewStack {
                 FrontendMainView::landing(&mut view, modal);
                 ViewStackReturnInfo { title: None, render_back_button: false, handle_back_logic: false, force_back: false }
             }
-            FrontendMainView::Timeline(ref mut data) => data.render(&mut view, you, modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Thread(ref mut data) =>   data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Profile(ref mut data) =>  data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Media(ref mut data) =>    data.render(&mut view,                      image,         &mut self.propose),
+            FrontendMainView::Timeline(ref mut data) =>    data.render(&mut view, you, modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Thread(ref mut data) =>      data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Profile(ref mut data) =>     data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Media(ref mut data) =>       data.render(&mut view,                      image,         &mut self.propose),
+            FrontendMainView::ProfileList(ref mut data) => data.render(&mut view,             backend, image,         &mut self.propose),
         };
 
         if let Some(title) = &inf.title {

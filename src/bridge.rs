@@ -8,6 +8,8 @@ use std::{fs::File, io::Read, path::PathBuf, sync::{
     mpsc::{Receiver, Sender},
     Arc, Mutex,
 }};
+use crate::defs::bsky::actor::defs::ProfileView;
+use crate::frontend::CursorListPair;
 
 pub enum FrontToBackMsg {
     ShutdownMessage,
@@ -18,7 +20,15 @@ pub enum FrontToBackMsg {
     GetFeedRequest(String, Option<String>, Option<u32>),
     GetProfileRequest(String),
     GetThreadRequest(String),
-    GetAuthorFeedRequest(String, String, Arc<Mutex<FeedCursorPair>>),
+    GetAuthorFeedRequest{
+        did: String,
+        cursor: String,
+        posts: Arc<Mutex<FeedCursorPair>>
+    },
+    GetFollowersRequest {
+        did: String,
+        profiles: Arc<Mutex<CursorListPair<ProfileView>>>,
+    },
 
     CreateRecordRequest(BlueskyApiRecord),
     CreateRecordWithMediaRequest(BlueskyApiRecord, Vec<PathBuf>),
@@ -176,7 +186,7 @@ impl Bridge {
                 FrontToBackMsg::GetThreadRequest(uri) => {
                     tx.send(BackToFrontMsg::ThreadResponse(uri.clone(), api.get_thread(uri, None, None).await))?;
                 },
-                FrontToBackMsg::GetAuthorFeedRequest(did, cursor, posts) => {
+                FrontToBackMsg::GetAuthorFeedRequest{ did, cursor, posts } => {
                     let res = api.get_author_feed(did, cursor).await;
                     if let Err(err) = &res {
                         println!("Failure {:?}", err);
@@ -190,6 +200,23 @@ impl Bridge {
                         poasts.feed.append(&mut res.feed);
                     }
                 },
+                FrontToBackMsg::GetFollowersRequest { did, profiles } => {
+                    let cursor = {
+                        let mut profiles = profiles.lock().unwrap();
+                        let cursor = profiles.cursor.clone();
+                        profiles.cursor = None;
+                        cursor.unwrap_or(String::new())
+                    };
+
+                    let (new_cursor, mut followers) = api.get_followers(did, cursor).await.unwrap();
+
+                    {
+                        let mut profiles = profiles.lock().unwrap();
+                        profiles.cursor = Some(new_cursor);
+                        profiles.items.append(&mut followers);
+                    }
+                }
+
                 FrontToBackMsg::CreateRecordRequest(record) => {
                     tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
                 }

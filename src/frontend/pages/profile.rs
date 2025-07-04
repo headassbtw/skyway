@@ -11,8 +11,9 @@ use crate::{
     widgets::spinner::SegoeBootSpinner,
     BSKY_BLUE,
 };
-
-use super::{MainViewProposition, ViewStackReturnInfo};
+use crate::frontend::CursorListPair;
+use crate::frontend::pages::profile_list::FrontendProfileListVariant;
+use super::{profile_list, FrontendMainView, MainViewProposition, ViewStackReturnInfo};
 #[derive(Debug)]
 pub struct FrontendProfileView {
     pub profile_data: Option<ProfileViewDetailed>,
@@ -148,7 +149,7 @@ impl FrontendProfileView {
                             }
                         }
 
-                        ui.disable();
+                        //ui.disable();
                         if let Some(follows_count) = &profile.follows_count {
                             let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
                             ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
@@ -183,6 +184,15 @@ impl FrontendProfileView {
 
                             ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, followers_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
                             ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
+
+                            if button.clicked() {
+                                new_view.set(FrontendMainView::ProfileList(FrontendProfileListVariant::Followers(
+                                    profile_list::ListData {
+                                        did: profile.did.clone(),
+                                        profiles: Arc::new(Mutex::new(CursorListPair { cursor: Some(String::new()), items: Vec::new() })),
+                                    }
+                                )))
+                            }
                         }
                     });
                     ui.with_layout(Layout::top_down(egui::Align::Min), |ui| {
@@ -240,7 +250,7 @@ impl FrontendProfileView {
                             if self.posts.is_none() && ui.is_rect_visible(loader_response.rect) {
                                 let post_vec = Arc::new(Mutex::new(FeedCursorPair { cursor: None, feed: Vec::new() }));
                                 self.posts = Some(post_vec.clone());
-                                backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest(profile.did.clone(), "".into(), post_vec)).unwrap();
+                                backend.backend_commander.send(FrontToBackMsg::GetAuthorFeedRequest{ did: profile.did.clone(), cursor: String::new(), posts: post_vec }).unwrap();
                             }
                         });
                     });

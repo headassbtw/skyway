@@ -15,6 +15,7 @@ pub mod thread;
 pub mod timeline;
 pub mod blob;
 pub mod feeds;
+pub mod following;
 
 #[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub struct BlueskyApiErrorMessage {

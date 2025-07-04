@@ -41,7 +41,27 @@ impl ProfileViewBasic {
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProfileView(serde_json::Value);
+pub struct ProfileView {
+    pub did: String,
+    pub handle: String,
+
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub display_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub avatar: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub associated: Option<ProfileAssociated>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub indexed_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub viewer: Option<ViewerState>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub labels: Option<Vec<serde_json::Value>>,
+}
 
 #[derive(std::fmt::Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

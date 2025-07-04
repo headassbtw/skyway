@@ -29,3 +29,8 @@ fn circle_button(ui: &mut egui::Ui, icon: &str, icon_size: f32, radius: f32) -> 
     }
     info.on_hover_cursor(egui::CursorIcon::PointingHand)
 }
+
+pub(crate) struct CursorListPair<T> {
+    pub cursor: Option<String>,
+    pub items: Vec<std::sync::Arc<T>>,
+}
