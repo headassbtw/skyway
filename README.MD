@@ -5,6 +5,7 @@ Work-in-progress native bluesky client, designed to adhere to Microsoft's Metro 
 The name is a mix of Blue**sky** and metro -> train -> sub**way**. It's also the (code)name of a map in the Titanfall 2 campaign.
 
 ![timeline](https://github.com/headassbtw/skyway/blob/master/screenshots/timeline.png?raw=true)
+![thread](https://github.com/headassbtw/skyway/blob/master/screenshots/thread.png?raw=true)
 ![profile](https://github.com/headassbtw/skyway/blob/master/screenshots/profile.png?raw=true)
 ![composer](https://github.com/headassbtw/skyway/blob/master/screenshots/composer.png?raw=true)
 
