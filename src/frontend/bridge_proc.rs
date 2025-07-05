@@ -1,12 +1,11 @@
 use crate::{
     backend::main::{BlueskyLoginResponseError, BlueskyLoginResponseInfo},
     frontend::{
-        main::{ClientFrontendFlyoutVariant, ClientFrontendModalVariant},
+        main::{ClientFrontend, ClientFrontendFlyoutVariant, ClientFrontendModalVariant},
         pages::{timeline::FrontendTimelineView, FrontendMainView},
+        modals::login::LoginModal
     },
 };
-
-use super::main::ClientFrontend;
 
 impl ClientFrontend {
     pub fn proc(&mut self) {
@@ -33,8 +32,16 @@ impl ClientFrontend {
                             BlueskyLoginResponseError::Generic(reason) => self.info_modal("Generic Backend Error", &reason),
                             BlueskyLoginResponseError::Network(reason) => self.info_modal("Network Error", &reason),
                             BlueskyLoginResponseError::InvalidRequest => self.info_modal("Invalid Request", ""),
-                            BlueskyLoginResponseError::ExpiredToken => self.info_modal("Token Expired", "Cached login has expired. Please log in again."),
-                            BlueskyLoginResponseError::InvalidToken => self.info_modal("Invalid Token", "Cached login was invalid. Please log in again."),
+                            BlueskyLoginResponseError::ExpiredToken |
+                            BlueskyLoginResponseError::InvalidToken => {
+                                self.modal.set(ClientFrontendModalVariant::LoginModal(LoginModal {
+                                    username: String::new(),
+                                    password: String::new(),
+                                    password_dots: true,
+                                    error_msg:  "Cached login was invalid or expired. Plese log in again.".into(),
+                                    interactive: true,
+                                }));
+                            },
                             BlueskyLoginResponseError::AccountTakenDown => self.info_modal("Account Taken Down", ""),
                             BlueskyLoginResponseError::AccountSuspended => self.info_modal("Account Suspended", ""),
                             BlueskyLoginResponseError::AccountInactive => self.info_modal("Account Inactive", ""),

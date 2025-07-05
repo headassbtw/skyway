@@ -4,10 +4,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use reqwest::{RequestBuilder, StatusCode};
 use serde::Deserialize;
 
-use super::{
-    main::{BlueskyLoginResponse, BlueskyLoginResponseError, LoginInformation},
-    ClientBackend,
-};
+use super::{main::{BlueskyLoginResponse, BlueskyLoginResponseError, LoginInformation}, BlueskyApiErrorMessage, ClientBackend};
 use base64::prelude::*;
 
 #[allow(dead_code)]
@@ -86,7 +83,21 @@ impl ClientBackend {
 
         match res.status() {
             StatusCode::UNAUTHORIZED => return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Unauthorized),
-            StatusCode::BAD_REQUEST => return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Network("Bad Request".into())),
+            StatusCode::BAD_REQUEST => {
+                let jason = res.text().await.unwrap();
+                let response: Result<BlueskyApiErrorMessage, serde_json::Error> = serde_json::from_str(&jason);
+                let response = match response {
+                    Err(e) => {
+                        return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic(format!("{:?}\n{}", e, jason)));
+                    },
+                    Ok(i) => i,
+                };
+
+                match response.error.as_str() {
+                    "ExpiredToken" => BlueskyLoginResponse::Error(BlueskyLoginResponseError::ExpiredToken),
+                    catchall => BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic(catchall.to_string())),
+                }
+            }
             StatusCode::TOO_MANY_REQUESTS => return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Network("Rate Limited".into())),
             StatusCode::OK => {
                 let jason_bytes = if let Ok(res) = res.bytes().await { res } else { return BlueskyLoginResponse::Error(BlueskyLoginResponseError::Generic("Failed to read response".into())) };
