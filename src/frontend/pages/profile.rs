@@ -151,21 +151,23 @@ impl FrontendProfileView {
 
                         //ui.disable();
                         if let Some(follows_count) = &profile.follows_count {
-                            let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-                            ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
+                            ui.add_enabled_ui(false, |ui| {
+                                let button = ui.allocate_response(vec2(height * 0.5, panel_height), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
+                                ui.painter().rect_filled(button.rect, Rounding::ZERO, ui.style().visuals.extreme_bg_color);
 
-                            let text = if let Some(viewer) = &profile.viewer {
-                                if viewer.followed_by.is_some() {
-                                    "Following (inc. You!)"
+                                let text = if let Some(viewer) = &profile.viewer {
+                                    if viewer.followed_by.is_some() {
+                                        "Following (inc. You!)"
+                                    } else {
+                                        "Following"
+                                    }
                                 } else {
                                     "Following"
-                                }
-                            } else {
-                                "Following"
-                            };
+                                };
 
-                            ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, follows_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
-                            ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
+                                ui.painter().text(button.rect.center() - vec2(0.0, big_text_size / 4.0), Align2::CENTER_BOTTOM, follows_count, FontId::proportional(big_text_size), ui.style().visuals.text_color());
+                                ui.painter().text(button.rect.center() + vec2(0.0, big_text_size * 1.2), Align2::CENTER_TOP, text, FontId::proportional(small_text_size), ui.style().visuals.text_color());
+                            });
                         }
 
                         if let Some(followers_count) = &profile.followers_count {
