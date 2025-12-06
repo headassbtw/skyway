@@ -1,5 +1,6 @@
-use egui::{load::SizedTexture, pos2, vec2, Align2, Color32, FontId, ImageSource, Layout, Rect, Rounding, ScrollArea, Stroke, Vec2};
-
+use eframe::emath;
+use eframe::emath::Align;
+use egui::{load::SizedTexture, pos2, vec2, Align2, Color32, FontId, Id, ImageSource, Layout, Pos2, Rect, Response, Rounding, ScrollArea, Sense, Stroke, UiBuilder, Vec2};
 use crate::{
     bridge::Bridge,
     defs::bsky::{
@@ -23,6 +24,7 @@ pub struct FrontendTimelineView {
     pub timeline: FeedCursorPair,
     pub feed: usize,
     pub feeds: Vec<(crate::defs::bsky::feed::defs::GeneratorView, FeedCursorPair)>,
+    control_strip_deployed: bool,
     pub post_highlight: (usize, f32, bool),
 }
 
@@ -36,7 +38,7 @@ impl FrontendTimelineView {
         for feed in feeds {
             feeds_dest.push((feed, FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() }));
         }
-        Self { timeline: FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() }, feed: 0, feeds: feeds_dest, post_highlight: (0, 999.999, false) }
+        Self { timeline: FeedCursorPair { cursor: Some(String::new()), feed: Vec::new() }, feed: 0, feeds: feeds_dest, control_strip_deployed: false, post_highlight: (0, 999.999, false) }
     }
 
     pub fn render(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, modal: &mut ClientFrontendModal, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) -> ViewStackReturnInfo {
@@ -180,52 +182,95 @@ impl FrontendTimelineView {
             })
         });
 
-        let profile_pos = ui.ctx().screen_rect().right_top() + vec2(-80.0, 80.0);
-        let search_pos = profile_pos - vec2(50.0, 0.0);
-        let compose_pos = search_pos - vec2(50.0, 0.0);
-        let refresh_pos = compose_pos - vec2(50.0, 0.0);
-
-        let profile_button = ui.allocate_rect(Rect::from_center_size(profile_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        let _search_button = ui.allocate_rect(Rect::from_center_size(search_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        let compose_button = ui.allocate_rect(Rect::from_center_size(compose_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-        let refresh_button = ui.allocate_rect(Rect::from_center_size(refresh_pos, vec2(30.0, 30.0)), egui::Sense::click()).on_hover_cursor(egui::CursorIcon::PointingHand);
-
-        ui.painter().text(search_pos, Align2::CENTER_CENTER, "\u{E11A}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-        ui.painter().text(compose_pos, Align2::CENTER_CENTER, "\u{E104}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-        ui.painter().text(refresh_pos, Align2::CENTER_CENTER, "\u{E0F2}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), BSKY_BLUE);
-
-        if let Some(you) = &you {
-            if let Some(pfp) = &you.avatar {
-                match image.get_image(pfp) {
-                    crate::image::LoadableImage::Loaded(texture_id, _) => {
-                        ui.painter().image(texture_id, profile_button.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
-                    }
-                    _ => {
-                        ui.painter().rect_filled(profile_button.rect, Rounding::ZERO, BSKY_BLUE);
-                        ui.painter().text(profile_pos + vec2(0.0, 4.0), Align2::CENTER_CENTER, "\u{E2AF}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
-                    }
-                }
-            }
-
-            if profile_button.clicked {
-                new_view.set(FrontendMainView::Profile(FrontendProfileView::new(you.did.clone())));
-            }
-        } else {
-            ui.painter().rect_filled(profile_button.rect, Rounding::ZERO, BSKY_BLUE);
-            ui.painter().text(profile_pos + vec2(0.0, 4.0), Align2::CENTER_CENTER, "\u{E2AF}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
-        }
-
-        if compose_button.clicked() {
-            flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
-        }
-
-        if refresh_button.clicked() {
-            let feed = if self.feed == 0 { &mut self.timeline } else { &mut self.feeds.get_mut(self.feed - 1).unwrap().1 };
-
-            feed.cursor = Some(String::new());
-            feed.feed.clear();
-        }
+        self.render_options_strip(ui, you, modal, backend, image, flyout, new_view);
 
         ViewStackReturnInfo { title: None, render_back_button: true, handle_back_logic: true, force_back: false }
+    }
+
+    fn strip_button(ui: &mut egui::Ui, icon: &str, text: &str) -> Response{
+        let label_galley = ui.painter().layout(text.to_string(), FontId::proportional(12.0), Color32::PLACEHOLDER, ui.ctx().screen_rect().width());
+        let offset = if label_galley.rect.width() < 80.0 {
+            (80.0 - label_galley.rect.width()) / 2.0
+        } else {
+            0.0
+        };
+
+        let button = ui.allocate_response(vec2(label_galley.rect.width().max(80.0), 80.0), egui::Sense::click());
+        let stroke = ui.style().interact(&button).bg_stroke;
+        let center = pos2(button.rect.center().x, button.rect.min.y + 30.0 + ui.style().spacing.window_margin.top);
+        let symbol_font = FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into()));
+
+        ui.painter().galley(pos2(button.rect.min.x + offset, ui.style().spacing.window_margin.top + button.rect.max.y - (5.0 + label_galley.rect.height())), label_galley, Color32::WHITE);
+        ui.painter().text(center, Align2::CENTER_CENTER, icon, symbol_font, stroke.color);
+        ui.painter().circle_stroke(center, 20.0, stroke);
+
+        ui.style_mut().spacing.window_margin.top *= 1.2;
+
+        button.on_hover_cursor(egui::CursorIcon::PointingHand)
+    }
+
+    fn render_options_strip(&mut self, ui: &mut egui::Ui, you: &Option<ProfileViewDetailed>, modal: &mut ClientFrontendModal, backend: &Bridge, image: &ImageCache, flyout: &mut ClientFrontendFlyout, new_view: &mut MainViewProposition) {
+        // TODO(headassbtw): spin up a windows 8 VM and check accuracy
+        let strip_deployed =  ui.ctx().animate_bool_with_time_and_easing(Id::from("TimelineControlStripDeployed"), self.control_strip_deployed, 0.6, emath::easing::cubic_out);
+        let strip_rect = Rect {
+            min: Pos2 { x: 0.0, y: ui.ctx().screen_rect().max.y - (20.0 + (strip_deployed * 60.0))},
+            max: ui.ctx().screen_rect().max
+        };
+        ui.set_clip_rect(strip_rect);
+        ui.painter().rect_filled(strip_rect, Rounding::ZERO, Color32::from_black_alpha(128 + (64.0 * strip_deployed) as u8));
+
+        self.control_strip_deployed = ui.rect_contains_pointer(strip_rect);
+
+        if strip_deployed != 1.0 {
+            for i in 0..3 {
+                let offset_x = strip_rect.max.x - 15.0 - (15.0 * i as f32);
+                ui.painter().circle_filled(pos2(offset_x, (strip_rect.min.y + 10.0) - (20.0 * strip_deployed)), 3.0, Color32::from_white_alpha(((1.0 - strip_deployed) * 255.0) as u8));
+            }
+        }
+
+        if strip_deployed != 0.0 {
+            let alpha = (255.0 * strip_deployed) as u8;
+            ui.style_mut().visuals.widgets.inactive.bg_stroke.color = Color32::from_white_alpha(alpha);
+            //ui.style_mut().visuals.widgets.active.bg_stroke.color = Color32::TRANSPARENT;
+            ui.style_mut().visuals.widgets.hovered.bg_stroke.color = Color32::from_rgba_unmultiplied(128, 128, 128, alpha);
+            ui.style_mut().spacing.window_margin.top = 20.0 - (20.0 * strip_deployed);
+        } else {
+            return;
+        }
+
+
+        ui.allocate_rect(strip_rect, Sense::click()); // just to block things below it
+
+        let strip_response = ui.allocate_new_ui(UiBuilder::new().layout(Layout::right_to_left(Align::Min)).max_rect(strip_rect), |ui| {
+            if Self::strip_button(ui, "\u{E2AF}", "You").clicked() {
+                if let Some(you) = &you {
+                    /* if let Some(pfp) = &you.avatar {
+                        match image.get_image(pfp) {
+                            crate::image::LoadableImage::Loaded(texture_id, _) => {
+                                ui.painter().image(texture_id, profile_button.rect, Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)), Color32::WHITE);
+                            }
+                            _ => {
+                                ui.painter().rect_filled(profile_button.rect, Rounding::ZERO, BSKY_BLUE);
+                                ui.painter().text(profile_pos + vec2(0.0, 4.0), Align2::CENTER_CENTER, "\u{}", FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into())), Color32::WHITE);
+                            }
+                        }
+                    }*/
+                    new_view.set(FrontendMainView::Profile(FrontendProfileView::new(you.did.clone())));
+                }
+            }
+            if Self::strip_button(ui, "\u{E104}", "Compose").clicked() {
+                flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
+            }
+            if Self::strip_button(ui, "\u{E11A}", "Search").clicked() {
+
+            }
+            if Self::strip_button(ui, "\u{E0F2}", "Refresh").clicked() {
+                let feed = if self.feed == 0 { &mut self.timeline } else { &mut self.feeds.get_mut(self.feed - 1).unwrap().1 };
+
+                feed.cursor = Some(String::new());
+                feed.feed.clear();
+            }
+            ui.allocate_space(ui.available_size());
+        });
     }
 }

@@ -161,7 +161,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 let font_id = FontId::proportional(if main { 20.0 } else { 14.0 });
 
                 // This kinda sucks but it works!
-                if let Some(facets) = &post.record.facets && facets.len() > 0 {
+                if let Some(facets) = &post.record.facets && facets.len() > 0 { // TODO(headassbtw) cull richtext if the regular text will suffice
                     profile_scope!("facets/richtext");
                     post_contents.horizontal_wrapped(|ui| {
                         ui.spacing_mut().item_spacing.x = 0.0;
