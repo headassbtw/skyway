@@ -1,6 +1,6 @@
 use eframe::emath;
 use eframe::emath::Align;
-use egui::{load::SizedTexture, pos2, vec2, Align2, Color32, FontId, Id, ImageSource, Layout, Pos2, Rect, Response, Rounding, ScrollArea, Sense, Stroke, UiBuilder, Vec2};
+use egui::{load::SizedTexture, pos2, vec2, Align2, Color32, FontId, Id, ImageSource, Layout, Pos2, Rect, Response, Rounding, ScrollArea, Sense, Separator, Stroke, UiBuilder, Vec2, Widget};
 use crate::{
     bridge::Bridge,
     defs::bsky::{
@@ -188,23 +188,27 @@ impl FrontendTimelineView {
     }
 
     fn strip_button(ui: &mut egui::Ui, icon: &str, text: &str) -> Response{
-        let label_galley = ui.painter().layout(text.to_string(), FontId::proportional(12.0), Color32::PLACEHOLDER, ui.ctx().screen_rect().width());
-        let offset = if label_galley.rect.width() < 80.0 {
-            (80.0 - label_galley.rect.width()) / 2.0
+        let pad = ui.spacing().button_padding.y;
+        let size = ui.spacing().interact_size;
+        let text_font = FontId::new(10.0, egui::FontFamily::Name("Segoe Light".into()));
+        let label_galley = ui.painter().layout(text.to_string(), text_font, Color32::PLACEHOLDER, ui.ctx().screen_rect().width());
+        let offset = if label_galley.rect.width() < size.x {
+            (size.x - label_galley.rect.width()) / 2.0
         } else {
             0.0
         };
 
-        let button = ui.allocate_response(vec2(label_galley.rect.width().max(80.0), 80.0), egui::Sense::click());
+        let button = ui.allocate_response(vec2(label_galley.rect.width().max(size.x), size.y), egui::Sense::click());
+
         let stroke = ui.style().interact(&button).bg_stroke;
-        let center = pos2(button.rect.center().x, button.rect.min.y + 30.0 + ui.style().spacing.window_margin.top);
-        let symbol_font = FontId::new(30.0, egui::FontFamily::Name("Segoe Symbols".into()));
+        let center = button.rect.center() - vec2(0.0, pad * 0.6);
+        let symbol_font = FontId::new(25.0, egui::FontFamily::Name("Segoe Symbols".into()));
 
-        ui.painter().galley(pos2(button.rect.min.x + offset, ui.style().spacing.window_margin.top + button.rect.max.y - (5.0 + label_galley.rect.height())), label_galley, Color32::WHITE);
+        ui.painter().galley(pos2(button.rect.min.x + offset, button.rect.max.y - (pad * 2.5)), label_galley, Color32::WHITE);
         ui.painter().text(center, Align2::CENTER_CENTER, icon, symbol_font, stroke.color);
-        ui.painter().circle_stroke(center, 20.0, stroke);
+        ui.painter().circle_stroke(center, (size.x - (pad * 4.0)) / 2.0, stroke);
 
-        ui.style_mut().spacing.window_margin.top *= 1.2;
+        ui.spacing_mut().window_margin.top *= 1.2;
 
         button.on_hover_cursor(egui::CursorIcon::PointingHand)
     }
@@ -213,7 +217,7 @@ impl FrontendTimelineView {
         // TODO(headassbtw): spin up a windows 8 VM and check accuracy
         let strip_deployed =  ui.ctx().animate_bool_with_time_and_easing(Id::from("TimelineControlStripDeployed"), self.control_strip_deployed, 0.6, emath::easing::cubic_out);
         let strip_rect = Rect {
-            min: Pos2 { x: 0.0, y: ui.ctx().screen_rect().max.y - (20.0 + (strip_deployed * 60.0))},
+            min: Pos2 { x: 0.0, y: ui.ctx().screen_rect().max.y - (20.0 + (strip_deployed * 70.0))},
             max: ui.ctx().screen_rect().max
         };
         ui.set_clip_rect(strip_rect);
@@ -229,11 +233,10 @@ impl FrontendTimelineView {
         }
 
         if strip_deployed != 0.0 {
-            let alpha = (255.0 * strip_deployed) as u8;
-            ui.style_mut().visuals.widgets.inactive.bg_stroke.color = Color32::from_white_alpha(alpha);
+            ui.style_mut().visuals.widgets.noninteractive.bg_stroke.color = Color32::WHITE;
+            ui.style_mut().visuals.widgets.inactive.bg_stroke = Stroke::new(2.0, Color32::WHITE);
             //ui.style_mut().visuals.widgets.active.bg_stroke.color = Color32::TRANSPARENT;
-            ui.style_mut().visuals.widgets.hovered.bg_stroke.color = Color32::from_rgba_unmultiplied(128, 128, 128, alpha);
-            ui.style_mut().spacing.window_margin.top = 20.0 - (20.0 * strip_deployed);
+            ui.style_mut().visuals.widgets.hovered.bg_stroke = Stroke::new(2.0, Color32::GRAY);
         } else {
             return;
         }
@@ -241,7 +244,13 @@ impl FrontendTimelineView {
 
         ui.allocate_rect(strip_rect, Sense::click()); // just to block things below it
 
-        let strip_response = ui.allocate_new_ui(UiBuilder::new().layout(Layout::right_to_left(Align::Min)).max_rect(strip_rect), |ui| {
+        let strip_response = ui.allocate_new_ui(UiBuilder::new().layout(Layout::right_to_left(Align::Min)).max_rect(strip_rect.translate(vec2(0.0, 20.0 * (1.0 - strip_deployed)))), |ui| {
+            ui.spacing_mut().button_padding = vec2(0.0, 10.0);
+            ui.spacing_mut().interact_size = vec2(80.0, 90.0);
+            if Self::strip_button(ui, "\u{E104}", "Compose").clicked() {
+                flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
+            }
+            Separator::default().grow(-15.0).ui(ui);
             if Self::strip_button(ui, "\u{E2AF}", "You").clicked() {
                 if let Some(you) = &you {
                     /* if let Some(pfp) = &you.avatar {
@@ -258,18 +267,20 @@ impl FrontendTimelineView {
                     new_view.set(FrontendMainView::Profile(FrontendProfileView::new(you.did.clone())));
                 }
             }
-            if Self::strip_button(ui, "\u{E104}", "Compose").clicked() {
-                flyout.set(crate::frontend::main::ClientFrontendFlyoutVariant::PostComposerFlyout(ComposerFlyout::new()));
-            }
             if Self::strip_button(ui, "\u{E11A}", "Search").clicked() {
 
             }
-            if Self::strip_button(ui, "\u{E0F2}", "Refresh").clicked() {
-                let feed = if self.feed == 0 { &mut self.timeline } else { &mut self.feeds.get_mut(self.feed - 1).unwrap().1 };
 
-                feed.cursor = Some(String::new());
-                feed.feed.clear();
-            }
+            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                if Self::strip_button(ui, "\u{E0F2}", "Refresh").clicked() {
+                    let feed = if self.feed == 0 { &mut self.timeline } else { &mut self.feeds.get_mut(self.feed - 1).unwrap().1 };
+
+                    feed.cursor = Some(String::new());
+                    feed.feed.clear();
+                }
+            });
+
+
             ui.allocate_space(ui.available_size());
         });
     }
