@@ -265,9 +265,6 @@ impl Bridge {
                     tx.send(BackToFrontMsg::RecordCreationResponse(api.create_record(record).await))?;
                 }
                 FrontToBackMsg::CreateRecordUnderPostRequest(record, post_mod) => match record {
-                    BlueskyApiRecord::Post(_) => {
-                        tx.send(BackToFrontMsg::RecordCreationResponse(Err(BlueskyApiError::NotImplemented)))?;
-                    }
                     BlueskyApiRecord::Like(record) => match api.create_record(BlueskyApiRecord::Like(record)).await {
                         Ok(res) => {
                             let mut post = post_mod.lock().unwrap();
@@ -292,6 +289,7 @@ impl Bridge {
                         }
                         Err(err) => tx.send(BackToFrontMsg::RecordCreationResponse(Err(err)))?,
                     },
+                    _ => tx.send(BackToFrontMsg::RecordCreationResponse(Err(BlueskyApiError::NotImplemented)))?
                 },
                 FrontToBackMsg::DeleteRecordRequest { .. } => {
                     tx.send(BackToFrontMsg::RecordDeletionResponse(Err(BlueskyApiError::NotImplemented)))?;

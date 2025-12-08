@@ -14,6 +14,8 @@ pub enum BlueskyApiRecord {
     Like(crate::defs::bsky::feed::Like),
     #[serde(rename = "app.bsky.feed.repost")]
     Repost(crate::defs::bsky::feed::Like),
+    #[serde(rename = "app.bsky.feed.threadgate")]
+    ThreadGate(crate::defs::bsky::feed::ThreadGate),
 }
 
 #[derive(std::fmt::Debug, Serialize, Deserialize, Clone, PartialEq)]
@@ -109,6 +111,7 @@ impl ClientBackend {
             },
             BlueskyApiRecord::Like(_) => ("app.bsky.feed.like", record),
             BlueskyApiRecord::Repost(_) => ("app.bsky.feed.repost", record),
+            BlueskyApiRecord::ThreadGate(_) => ("app.bsky.feed.threadgate", record),
         };
 
         let contents = CreateRecordRequest { repo: self.did.clone(), collection: nsid.to_owned(), record };

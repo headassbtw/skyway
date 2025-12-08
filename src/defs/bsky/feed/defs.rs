@@ -2,8 +2,8 @@ use std::sync::{Arc, Mutex};
 
 use chrono::{DateTime, Utc};
 use serde::{self, Deserialize, Serialize};
-
 use crate::defs::bsky::actor::defs::ProfileViewBasic;
+use crate::defs::bsky::feed::ThreatGateAllow;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -26,11 +26,11 @@ pub struct PostView {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub quote_count: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub viewer: Option<crate::defs::bsky::feed::defs::ViewerState>,
+    pub viewer: Option<ViewerState>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub labels: Option<Vec<serde_json::Value>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub threadgate: Option<serde_json::Value>,
+    pub threadgate: Option<ThreadGateView>,
 }
 
 impl PostView {
@@ -38,6 +38,39 @@ impl PostView {
         let id = self.uri.split("/").last().unwrap();
         let handle = if self.author.handle.eq("handle.invalid") { &self.author.did } else { &self.author.handle };
         format!("https://bsky.app/profile/{}/post/{}", handle, id)
+    }
+
+    pub fn can_reply(&self) -> bool {
+        let disabled = if let Some(viewer) = &self.viewer {
+            viewer.reply_disabled.unwrap_or(false)
+        } else { false };
+
+        if disabled { return false }
+
+        let gated = if let Some(gate) = &self.threadgate {
+            if let Some(gate) = &gate.record {
+                if let Some(allow) = &gate.allow {
+                    let mut met = false;
+                    for condition in allow {
+                        if met { return true }
+                        // TODO(headassbtw): properly validate all of these
+                        match condition {
+                            ThreatGateAllow::Mention => {}
+                            ThreatGateAllow::Follower => if let Some(viewer) = &self.author.viewer {
+                                met = viewer.following.is_some()
+                            }
+                            ThreatGateAllow::Following => if let Some(viewer) = &self.author.viewer {
+                                met = viewer.followed_by.is_some()
+                            }
+                            ThreatGateAllow::List { .. } => {}
+                        }
+                    }
+                    return met;
+                } else { false }
+            } else { false }
+        } else { false };
+
+        !gated
     }
 }
 
@@ -194,4 +227,17 @@ pub struct GeneratorView {
 pub struct GeneratorViewerState {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub like: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ThreadGateView {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub uri: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cid: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub record: Option<crate::defs::bsky::feed::ThreadGate>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lists: Option<Vec<crate::defs::bsky::graph::defs::ListViewBasic>>,
 }

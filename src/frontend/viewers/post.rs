@@ -259,6 +259,7 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
             post_contents.style_mut().spacing.item_spacing.y = 10.0;
             post_contents.allocate_space(vec2(0.0, 0.0));
 
+            let reply_enabled = post.can_reply();
             let reply_count = post.reply_count.unwrap_or(0);
             let repost_count = post.repost_count.unwrap_or(0);
             let quote_count = post.quote_count.unwrap_or(0);
@@ -300,6 +301,20 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
                 });
                 post_contents.allocate_space(vec2(0.0, 0.0));
             }
+            if main && !reply_enabled {
+                if let Some(threadgate) = &post.threadgate {
+                    if let Some(gate) = &threadgate.record {
+                        if let Some(allow) = &gate.allow {
+                            post_contents.label(format!("Replies restricted to {:?}", allow));
+                        }
+                    } else {
+                        post_contents.label("Replies ThreadGated for an unknown reason.");
+                    }
+                } else {
+                    post_contents.label("Replies disabled.");
+                }
+                post_contents.allocate_space(vec2(0.0, 0.0));
+            }
             post_contents.with_layout(Layout::left_to_right(egui::Align::Min), |action_buttons| 'render_action_buttons: {
                 if post.viewer.is_none() {
                     profile_scope!("Action Buttons early exit 0");
@@ -322,8 +337,6 @@ pub fn post_viewer(ui: &mut Ui, post: Arc<Mutex<PostView>>, main: bool, modal: &
 
                 {
                     profile_scope!("Reply Button");
-
-                    let reply_enabled = if let Some(dis) = post.viewer.as_ref().unwrap().reply_disabled { dis } else { true };
                     let reply_count = if main { 0 } else { reply_count };
                     let reply_button = action_button(action_buttons, reply_enabled, false, 30.0, "\u{E206}", reply_count as usize, None);
                     if reply_button.clicked() {

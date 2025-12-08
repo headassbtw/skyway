@@ -160,6 +160,7 @@ pub struct ViewerState {
     pub following: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub followed_by: Option<String>,
+    /// This property is present only in selected cases, as an optimization.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub known_followers: Option<KnownFollowers>,
 }
