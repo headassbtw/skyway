@@ -62,9 +62,9 @@ impl ClientFrontend {
                 crate::bridge::BackToFrontMsg::TimelineResponse(tl) => match tl {
                     Ok(tl) => {
                         //TODO: FIX
-                        if let Some(page) = self.view_stack.top() {
+                        if let Some(ref mut page) = self.view_stack.top() {
                             match page {
-                                FrontendMainView::Timeline(ref mut data) => {
+                                FrontendMainView::Timeline(data) => {
                                     if data.feed == 0 {
                                         data.timeline.cursor = tl.cursor;
                                         for post in tl.feed {

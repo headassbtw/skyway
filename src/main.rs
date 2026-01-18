@@ -1,5 +1,3 @@
-#![feature(let_chains)]
-
 pub mod backend;
 pub mod bridge;
 pub mod frontend;

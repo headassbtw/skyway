@@ -100,19 +100,19 @@ impl FrontendMainViewStack {
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackTitleSlide".into(), true, 0.5, ease_out_cubic);
         let pos = pos2(ui.cursor().left() + (100.0 - (offset * 100.0)), ui.cursor().top() - 40.0);
 
-        let guh = self.stack.last_mut().unwrap();
+        let mut guh = self.stack.last_mut().unwrap();
         let offset = self.ctx.animate_bool_with_time_and_easing("FrontendMainViewStackSlide".into(), true, 0.7, ease_out_cubic);
         let mut view = ui.new_child(UiBuilder::new().max_rect(ui.cursor().with_max_y(self.ctx.screen_rect().bottom()).translate(vec2(100.0 - (offset * 100.0), 0.0))));
-        let inf: ViewStackReturnInfo = match guh {
+        let inf: ViewStackReturnInfo = match &mut guh {
             FrontendMainView::Login() => {
                 FrontendMainView::landing(&mut view, modal);
                 ViewStackReturnInfo { title: None, render_back_button: false, handle_back_logic: false, force_back: false }
             }
-            FrontendMainView::Timeline(ref mut data) =>    data.render(&mut view, you, modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Thread(ref mut data) =>      data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Profile(ref mut data) =>     data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
-            FrontendMainView::Media(ref mut data) =>       data.render(&mut view,                      image,         &mut self.propose),
-            FrontendMainView::ProfileList(ref mut data) => data.render(&mut view,             backend, image,         &mut self.propose),
+            FrontendMainView::Timeline(data) =>    data.render(&mut view, you, modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Thread(data) =>      data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Profile(data) =>     data.render(&mut view,      modal, backend, image, flyout, &mut self.propose),
+            FrontendMainView::Media(data) =>       data.render(&mut view,                      image,         &mut self.propose),
+            FrontendMainView::ProfileList(data) => data.render(&mut view,             backend, image,         &mut self.propose),
         };
 
         if let Some(title) = &inf.title {
