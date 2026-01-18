@@ -40,6 +40,16 @@ async fn main() -> eframe::Result {
         };
     }
 
-    let native_options = eframe::NativeOptions { viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 720.0]).with_app_id("com.headassbtw.metro.bluesky").with_min_inner_size([640.0, 480.0]), ..Default::default() };
+    let native_options = eframe::NativeOptions {
+        viewport: egui::ViewportBuilder::default()
+            .with_inner_size([1280.0, 720.0])
+            .with_app_id("com.headassbtw.metro.bluesky")
+            .with_min_inner_size([640.0, 480.0])
+            .with_fullsize_content_view(true)
+            .with_title_shown(false)
+            .with_titlebar_shown(false),
+
+        ..Default::default()
+    };
     eframe::run_native("BLUESKY!", native_options, Box::new(|cc| Ok(Box::new(ClientFrontend::new(cc)))))
 }
